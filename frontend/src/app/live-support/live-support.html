@@ -1,0 +1,17 @@
+<div class="live-layout" [class.compact]="compact">
+  <section class="queue">
+    <header><div><span class="live-dot"></span><b>{{isStaff ? 'Live Support Queue' : 'My Live Support'}}</b></div><button (click)="load()">↻</button></header>
+    @if (!isStaff) { <div class="request"><input [(ngModel)]="subject" placeholder="What do you need help with?"><button (click)="request()" [disabled]="busy()">Request an agent</button></div> }
+    @for (item of sessions(); track item.publicId) {
+      <article [class.selected]="active()?.publicId===item.publicId" (click)="open(item.publicId)"><div><b>{{item.subject}}</b><small>{{item.requestedBy}} · {{item.updatedAt|date:'shortTime'}}</small></div><span [attr.data-state]="item.status">{{item.status}}</span>@if(isStaff && item.status==='Waiting'){<button (click)="$event.stopPropagation();accept(item)">Accept</button>}</article>
+    } @empty { <div class="empty-live">No live conversations.</div> }
+  </section>
+  <section class="conversation">
+    @if (active(); as chat) {
+      <header><div><b>{{chat.subject}}</b><small>{{chat.requestedBy}} ↔ {{chat.acceptedBy||'Waiting for agent'}}</small></div><div>@if(isStaff && !chat.ticketId){<button (click)="convert()">Create ticket</button>}<button (click)="end()" [disabled]="chat.status==='Ended'">End</button></div></header>
+      <div class="transcript">@for(m of chat.messages;track m.id){<div class="bubble" [class.mine]="m.sender===api.session()?.userName" [class.system]="m.sender==='System'"><b>{{m.sender}}</b><p>{{m.body}}</p><small>{{m.createdAt|date:'shortTime'}}</small></div>}@if(chat.ticketId){<div class="linked">Linked ticket ID: {{chat.ticketId}}</div>}</div>
+      <form (ngSubmit)="send()"><input [(ngModel)]="draft" name="live-message" [disabled]="chat.status==='Ended'" placeholder="Write a message…"><button>Send</button></form>
+    } @else { <div class="conversation-empty">Select a conversation to view its persisted transcript.</div> }
+  </section>
+</div>
+@if(error()){<div class="live-error">{{error()}}</div>}

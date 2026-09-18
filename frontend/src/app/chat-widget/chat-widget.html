@@ -5,7 +5,8 @@
     <div class="messages">
       @for (m of messages(); track $index) {
         <div class="message" [class.user]="m.role === 'user'">{{ m.content }}
-          @if (m.canEscalate) { <button class="escalate" (click)="escalate()">Create & route a ticket</button> }
+          @if (m.awaitingConfirmation) { <button class="escalate" (click)="send('confirm-ticket')">Confirm ticket creation</button> }
+          @if (m.canEscalate) { <button class="escalate secondary" (click)="send('request-live')">Request a live agent</button> }
         </div>
       }
       @if (busy()) { <div class="message typing">Thinking…</div> }
