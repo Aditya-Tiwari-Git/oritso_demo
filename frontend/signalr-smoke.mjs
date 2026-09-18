@@ -1,6 +1,6 @@
 import * as signalR from '@microsoft/signalr';
 
-const base = process.env.NORTHSTAR_API || 'http://localhost:5266';
+const base = process.env.ORITSO_API || 'http://localhost:5266';
 async function login(userName, password) {
   const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userName, password }) });
   if (!response.ok) throw new Error(`Login failed for ${userName}`);
