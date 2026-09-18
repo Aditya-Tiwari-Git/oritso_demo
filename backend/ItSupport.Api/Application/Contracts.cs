@@ -1,0 +1,12 @@
+using System.ComponentModel.DataAnnotations;
+namespace ItSupport.Api.Application;
+public record LoginRequest([Required] string UserName, [Required] string Password);
+public record LoginResponse(string Token, string UserName, string DisplayName, string Role, DateTimeOffset ExpiresAt);
+public record CreateTicketRequest([Required, MaxLength(30)] string Type, [Required, MaxLength(140)] string Title, [Required, MaxLength(4000)] string Description, [Required] string Category, [Required] string Priority, [Required] string Service);
+public record UpdateTicketRequest(string? Status, int? AssignmentGroupId, string? Priority);
+public record AddCommentRequest([Required, MaxLength(2000)] string Body);
+public record ChatRequest([Required, MaxLength(4000)] string Message, Guid? SessionId, bool CreateTicket = false);
+public record ChatReply(Guid SessionId, string Message, object[] Articles, int? TicketId, string? TicketNumber, bool CanEscalate);
+public record NamedOptionRequest([Required, MaxLength(80)] string Name, bool IsActive = true);
+public record ArticleRequest([Required] string Title, [Required] string Content, string Keywords, string Category, bool IsPublished = true);
+public record RuleRequest([Required] string Name, int Order, string? Category, string? Service, string? Priority, string? TicketType, string? Keywords, int AssignmentGroupId, bool IsActive = true);

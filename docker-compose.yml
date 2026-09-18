@@ -1,0 +1,17 @@
+services:
+  api:
+    build: ./backend/ItSupport.Api
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - crm-data:/app/data
+      - crm-uploads:/app/uploads
+      - ./backend/ItSupport.Api/credentials.json:/app/credentials.json:ro
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on: [api]
+    ports: ["8080:80"]
+volumes:
+  crm-data:
+  crm-uploads:

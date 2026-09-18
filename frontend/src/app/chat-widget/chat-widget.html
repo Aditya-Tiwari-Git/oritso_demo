@@ -1,0 +1,15 @@
+<button class="launcher" (click)="open.set(!open())" aria-label="Open support chat">{{ open() ? '×' : '✦' }}</button>
+@if (open()) {
+  <section class="chat" aria-live="polite">
+    <header><span class="bot-dot"></span><div><strong>{{ title }}</strong><small>Online · KB + smart routing</small></div></header>
+    <div class="messages">
+      @for (m of messages(); track $index) {
+        <div class="message" [class.user]="m.role === 'user'">{{ m.content }}
+          @if (m.canEscalate) { <button class="escalate" (click)="escalate()">Create & route a ticket</button> }
+        </div>
+      }
+      @if (busy()) { <div class="message typing">Thinking…</div> }
+    </div>
+    <form (ngSubmit)="send()"><input [(ngModel)]="draft" name="message" placeholder="Describe your issue…" maxlength="4000"><button type="submit">Send</button></form>
+  </section>
+}
