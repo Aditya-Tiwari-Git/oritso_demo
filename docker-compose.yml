@@ -6,7 +6,7 @@ services:
     volumes:
       - crm-data:/app/data
       - crm-uploads:/app/uploads
-      - ./backend/ItSupport.Api/credentials.json:/app/credentials.json:ro
+      - ./backend/ItSupport.Api/credentials.json:/app/credentials.json
   web:
     build: ./frontend
     restart: unless-stopped

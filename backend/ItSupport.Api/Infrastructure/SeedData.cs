@@ -1,7 +1,40 @@
 using ItSupport.Api.Domain;
 using Microsoft.EntityFrameworkCore;
+
 namespace ItSupport.Api.Infrastructure;
+
 public static class SeedData
 {
- public static async Task InitializeAsync(AppDbContext db) { await db.Database.EnsureCreatedAsync(); if (await db.AssignmentGroups.AnyAsync()) return; var groups = new[] { new AssignmentGroup { Name = "Service Desk", Description = "First-line triage" }, new AssignmentGroup { Name = "Identity & Access", Description = "Login and permissions" }, new AssignmentGroup { Name = "End User Computing", Description = "Devices and desktop support" }, new AssignmentGroup { Name = "Business Applications", Description = "Enterprise applications" } }; db.AssignmentGroups.AddRange(groups); db.Categories.AddRange([new() { Name = "Access" }, new() { Name = "Hardware" }, new() { Name = "Software" }, new() { Name = "Network" }]); db.Services.AddRange([new() { Name = "Identity" }, new() { Name = "End User Computing" }, new() { Name = "Business Applications" }, new() { Name = "Network" }]); db.Priorities.AddRange([new() { Name = "Critical", Rank = 1 }, new() { Name = "High", Rank = 2 }, new() { Name = "Medium", Rank = 3 }, new() { Name = "Low", Rank = 4 }]); db.Statuses.AddRange([new() { Name = "New", SortOrder = 1 }, new() { Name = "In Progress", SortOrder = 2 }, new() { Name = "Waiting on User", SortOrder = 3 }, new() { Name = "Resolved", SortOrder = 4 }, new() { Name = "Closed", SortOrder = 5 }]); await db.SaveChangesAsync(); db.RoutingRules.AddRange([new() { Name = "Access issues", Order = 10, Category = "Access", AssignmentGroupId = groups[1].Id }, new() { Name = "Hardware issues", Order = 20, Category = "Hardware", AssignmentGroupId = groups[2].Id }, new() { Name = "Application issues", Order = 30, Category = "Software", AssignmentGroupId = groups[3].Id }, new() { Name = "Catch all", Order = 999, AssignmentGroupId = groups[0].Id }]); db.KnowledgeArticles.AddRange([new() { Title = "Reset a locked account", Category = "Access", Keywords = "password login locked account", Content = "Wait 15 minutes after repeated attempts, then use the password reset portal. Restart your browser and sign in with the new password. If multi-factor authentication fails, verify your phone time is set automatically." }, new() { Title = "Restore VPN connectivity", Category = "Network", Keywords = "vpn remote connection network", Content = "Disconnect the VPN, confirm normal internet access, then reconnect. If it still fails, restart the VPN client and verify your device date and time. Record the error code before escalating." }]); await db.SaveChangesAsync(); }
+    public static async Task InitializeAsync(AppDbContext db)
+    {
+        await db.Database.EnsureCreatedAsync();
+        if (await db.AssignmentGroups.AnyAsync()) return;
+
+        var serviceDesk = new AssignmentGroup { Name = "Service Desk", Description = "First-line intake and triage" };
+        var cts = new AssignmentGroup { Name = "CTS Hardware Support", Description = "Cheque Truncation System scanners and devices" };
+        var cbs = new AssignmentGroup { Name = "CBS Support", Description = "Core Banking System integration and dispatch" };
+        db.AssignmentGroups.AddRange(serviceDesk, cts, cbs);
+
+        var hardware = new Category { Name = "CTS Hardware", Subcategories = [new() { Name = "Scanner Jam" }, new() { Name = "Connectivity" }] };
+        var integration = new Category { Name = "CBS Integration", Subcategories = [new() { Name = "Catch & Dispatch" }] };
+        db.Categories.AddRange(hardware, integration);
+        db.Services.AddRange([new() { Name = "CTS Scanner" }, new() { Name = "CTS / CBS Integration" }, new() { Name = "Branch IT" }]);
+        db.Priorities.AddRange([new() { Name = "Critical", Rank = 1 }, new() { Name = "High", Rank = 2 }, new() { Name = "Medium", Rank = 3 }, new() { Name = "Low", Rank = 4 }]);
+        db.Statuses.AddRange([new() { Name = "New", SortOrder = 1 }, new() { Name = "Assigned", SortOrder = 2 }, new() { Name = "In Progress", SortOrder = 3 }, new() { Name = "Pending", SortOrder = 4 }, new() { Name = "Resolved", SortOrder = 5 }, new() { Name = "Closed", SortOrder = 6 }]);
+        await db.SaveChangesAsync();
+
+        db.AgentGroupMemberships.AddRange([new() { UserName = "rahul", AssignmentGroupId = cts.Id }, new() { UserName = "priya", AssignmentGroupId = cbs.Id }, new() { UserName = "agent", AssignmentGroupId = serviceDesk.Id }]);
+        db.RoutingRules.AddRange([
+            new() { Name = "Scanner Jam Issues", Order = 10, Category = "CTS Hardware", Subcategory = "Scanner Jam", AssignmentGroupId = cts.Id },
+            new() { Name = "Scanner Connectivity Issues", Order = 20, Category = "CTS Hardware", Subcategory = "Connectivity", AssignmentGroupId = cts.Id },
+            new() { Name = "CBS Catch and Dispatch", Order = 30, Category = "CBS Integration", Subcategory = "Catch & Dispatch", AssignmentGroupId = cbs.Id },
+            new() { Name = "Service Desk Catch All", Order = 999, AssignmentGroupId = serviceDesk.Id }
+        ]);
+        db.KnowledgeArticles.AddRange([
+            new() { Title = "Scanner Jam Troubleshooting", Category = "CTS Hardware", Subcategory = "Scanner Jam", Keywords = "scanner jam outward inward clearing paper document", Content = "1. Stop the current scanning operation.\n2. Check the scanner and visible paper path.\n3. Safely remove any visibly jammed document without forcing it.\n4. Check for folded or damaged documents and align the batch correctly.\n5. Reinitialize the scanner using the approved application control.\n6. Retry with a single aligned document.\n7. If the jam continues, stop and escalate to CTS Hardware Support." },
+            new() { Title = "Scanner Connectivity Troubleshooting", Category = "CTS Hardware", Subcategory = "Connectivity", Keywords = "scanner disconnected device not detected communication connection", Content = "1. Confirm the scanner power and ready indicators.\n2. Check approved physical cable connections at both ends.\n3. Confirm whether the CTS workstation detects the scanner.\n4. Close the active scan operation, then use the approved reconnect/restart procedure.\n5. Reopen the CTS application and check device status.\n6. Record the device model and exact error if the scanner remains unavailable." },
+            new() { Title = "CBS Catch & Dispatch Information Collection", Category = "CBS Integration", Subcategory = "Catch & Dispatch", Keywords = "cbs url catch dispatch communication integration error", Content = "Do not repeatedly retry a failing dispatch. Record the exact CBS error, affected branch/user, start time, whether multiple users are affected, and the clearing stage. Capture approved screenshots or logs with no customer-sensitive data. Confirm network availability, then escalate the collected evidence to CBS Support for investigation and dispatch." }
+        ]);
+        await db.SaveChangesAsync();
+    }
 }

@@ -1,62 +1,127 @@
-# Northstar IT Support CRM
+# Oritso IT Support CRM
 
-A demo-ready IT service portal built with Angular 20, ASP.NET Core 10, EF Core, and SQLite. It includes role-aware ticketing, deterministic auto-routing, major incidents, comments/history, safe attachment handling, admin-managed catalogs/rules/knowledge, and an LLM-optional conversational support widget.
+Oritso IT Support CRM is a demo-ready IT Service Management application for banking Cheque Truncation System (CTS) support. It combines an Angular 20 portal, ASP.NET Core 10 API, EF Core/SQLite, a knowledge-grounded OpenAI assistant, and SignalR live support.
 
-## What is included
+## Demonstrable workflows
 
-- `User` sees and updates their own tickets; `ITSupport` works the shared queue; `Admin` also configures routing, teams, catalogs, and knowledge.
-- Custom HMAC-signed 8-hour sessions. Accounts live in `backend/ItSupport.Api/credentials.json` as requested; no Identity/OAuth dependency is used.
-- Ordered routing rules match category, service, priority, issue type, and optional comma-separated keywords. The final catch-all sends work to Service Desk.
-- Chat searches the local knowledge base, asks for more diagnostic context, checks a user's latest ticket, and creates/reroutes a ticket on escalation.
-- OpenAI Responses API is optional. With no key, the complete local KB/routing flow still works.
-- SQLite, audit logs, validation, ownership checks, file type/size checks, CORS, health check, responsive UI, and container deployment.
+- Bank users create incidents, see only their tickets, add comments/evidence, use approved CTS guidance, and request live support.
+- Agents see only tickets in their assignment groups or assigned directly to them. They can accept, reassign, prioritize, investigate with internal notes, escalate, resolve, and participate in realtime chat.
+- Admins manage agent-to-group memberships, support teams, categories/subcategories, services, routing rules, and knowledge articles.
+- Admins can permanently delete tickets, chatbot conversations, and live-support transcripts from the Admin danger zone. Related records are cascaded, unreferenced attachment files are removed, and a deletion tombstone is retained in the audit log.
+- Ordered routing sends Scanner Jam and Connectivity incidents to **CTS Hardware Support**, Catch & Dispatch incidents to **CBS Support**, and unmatched work to **Service Desk**.
+- The bot searches approved knowledge first, maintains structured intake state, gathers missing details, presents a confirmation, and only then creates an `INC000001`-style incident through controlled backend services.
+- Live support uses authenticated SignalR WebSockets, persists the transcript, and can link or convert a conversation into a routed ticket.
+
+## Demo personas
+
+Accounts are intentionally configured in `backend/ItSupport.Api/credentials.json` rather than ASP.NET Identity:
+
+| Persona | Login | Password | Initial queue |
+|---|---|---|---|
+| Admin | `admin` | `Admin@123` | All tickets |
+| CTS agent | `rahul` | `Rahul@123` | CTS Hardware Support |
+| CBS agent | `priya` | `Priya@123` | CBS Support |
+| Service Desk agent | `agent` | `Agent@123` | Service Desk |
+| Bank user | `user` | `User@123` | Own tickets only |
+
+Change every password and the signing key before sharing the demo. Passwords are plaintext only because this project explicitly uses editable file authentication; a real deployment must use hashed passwords or an enterprise identity provider.
 
 ## Local setup
 
-Prerequisites: .NET 10 SDK and Node.js 22+ (Node 24 is tested).
+Prerequisites:
 
-1. Edit `backend/ItSupport.Api/credentials.json` to set demo users. Valid roles are exactly `Admin`, `ITSupport`, and `User`.
-2. For an LLM-enabled bot, set environment variables in the API terminal. The only required external credential is `OPENAI_API_KEY`. See `.env.example` for every supported value.
-3. Start the API:
+- .NET 10 SDK
+- Node.js 22 or newer
+- PowerShell on Windows
 
-   ```powershell
-   dotnet run --project backend/ItSupport.Api
-   ```
+Create a local environment file:
 
-4. In a second terminal, start Angular:
+```powershell
+Copy-Item .env.example .env
+```
 
-   ```powershell
-   cd frontend
-   cmd /c npm install
-   cmd /c npm start
-   ```
+Set a long random `AUTH__SIGNINGKEY`. Add `OPENAI_API_KEY` if LLM wording is required. The assistant still performs classification, KB search, intake, confirmation, ticket creation, routing, and live escalation when OpenAI is disabled or unavailable.
 
-5. Open `http://localhost:4200`. Seed logins are `admin / Admin@123`, `agent / Agent@123`, and `user / User@123`.
+Install and build:
 
-The database is created and seeded automatically at `backend/ItSupport.Api/data/itsupport.db`. Delete only that file when you intentionally want a clean demo reset. Uploaded evidence is stored under `backend/ItSupport.Api/uploads`.
+```powershell
+dotnet restore ItSupport.slnx
+dotnet build ItSupport.slnx
+cd frontend
+cmd /c npm install
+cmd /c npm run build
+cd ..
+```
 
-## Configuration and API
+Start the API:
 
-Development OpenAPI JSON is at `http://localhost:5266/openapi/v1.json`; health is at `/health`. The main routes are `/api/auth/login`, `/api/tickets`, `/api/catalog`, `/api/knowledge`, `/api/chat`, and `/api/admin/*`.
+```powershell
+dotnet run --project backend/ItSupport.Api
+```
 
-The chatbot is isolated in `frontend/src/app/chat-widget`. Copy that folder plus the small API service contract into another Angular application and use `<it-chat-widget title="IT Help"></it-chat-widget>`. For non-Angular hosts, call `POST /api/chat` with `{ "message": "...", "sessionId": null, "createTicket": false }`; keep the returned `sessionId` for continuity. The host supplies a user session token, so the widget never owns authentication or CRM internals.
+Start Angular in a second terminal:
 
-## Server deployment
+```powershell
+cd frontend
+cmd /c npm start
+```
 
-The simplest demo deployment is Docker Compose on any Linux VM with Docker Engine and Compose v2:
+Open `http://localhost:4200`. The API root at `http://localhost:5266/`, `/health`, and `/api/auth/login` are public; protected APIs require the signed session token Angular attaches through its HTTP interceptor.
 
-1. Copy `.env.example` to `.env`, generate a long random `AUTH__SIGNINGKEY`, set the public origin in `FRONTENDURL`, and optionally add the OpenAI key.
-2. Replace all sample passwords in `credentials.json` before exposing the server.
-3. Run `docker compose up -d --build`.
-4. Open port 8080 in the host firewall, or put HTTPS-enabled Caddy/Nginx/your cloud load balancer in front of `http://127.0.0.1:8080`.
-5. Back up the named volumes `crm-data` and `crm-uploads`, and keep `.env` and `credentials.json` outside public source control.
+## OpenAI diagnostics
 
-For a production system beyond this demo, replace file passwords with a managed identity provider or password hashes, move SQLite to a managed relational database for multi-instance writes, add malware scanning/object storage for uploads, use EF migrations, add rate limiting and secret management, and run API/widget contract and end-to-end tests in CI.
+All OpenAI traffic originates in ASP.NET Core; the key is never sent to Angular or returned by an API. Logs explicitly show:
+
+- whether OpenAI is enabled;
+- the selected model;
+- request start and successful response;
+- HTTP or transport failure;
+- fallback to deterministic, knowledge-grounded behavior.
+
+Admin UI/API status is available at `/api/admin/bot-status`. An HTTP `429` means the key was accepted into the integration path but its OpenAI project needs available quota/rate capacity. Update billing/quota for that key or leave fallback active.
+
+## Reset and reseed
+
+Stop the API and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/reset-demo.ps1
+```
+
+The next API start recreates SQLite with CTS teams, memberships, classifications, routing rules, statuses, and three complete knowledge articles. The pre-upgrade database was preserved under `backend/ItSupport.Api/data/backup-pre-cts-upgrade`.
 
 ## Verification
 
+With the API running:
+
 ```powershell
-dotnet build ItSupport.slnx
+powershell -ExecutionPolicy Bypass -File tools/smoke-test.ps1
 cd frontend
-cmd /c npm run build
+node signalr-smoke.mjs
 ```
+
+The API suite covers public/protected endpoints, all persona logins, queue authorization, sequential numbering, routing, assignment, comments/work notes, history, resolution, bot confirmation flows, CBS/scanner knowledge, live queue acceptance, transcript persistence, conversion to a ticket, admin membership changes, Admin-only operational deletion, database cascades, physical attachment cleanup, and deletion audit tombstones. The SignalR test establishes two authenticated WebSocket clients and verifies immediate agent-to-user delivery.
+
+## Docker/server deployment
+
+```bash
+cp .env.example .env
+# edit .env and credentials.json
+docker compose up -d --build
+```
+
+Open port `8080`, or place a TLS-enabled load balancer/Caddy/Nginx in front of it. The included Nginx configuration proxies REST calls and WebSocket upgrades. Back up the `crm-data` and `crm-uploads` volumes, store `.env` outside source control, and restrict access to `credentials.json`.
+
+For a multi-instance production service, replace file authentication, SQLite, and local attachment storage with managed identity, a server database, object storage/malware scanning, centralized secrets, migrations, and distributed SignalR.
+
+## Architecture pointers
+
+The complete implemented architecture, flows, entity model, endpoint inventory, security model, and Google Cloud deployment guidance are documented in [`docs/TECHNICAL-ARCHITECTURE.md`](docs/TECHNICAL-ARCHITECTURE.md).
+
+- `backend/ItSupport.Api/Domain/Entities.cs` — tickets, memberships, bot/live sessions, histories
+- `backend/ItSupport.Api/Application/Services.cs` — routing, permissions, ticket creation, agentic orchestrator, OpenAI fallback
+- `backend/ItSupport.Api/Infrastructure/LiveSupportHub.cs` — authenticated realtime messaging
+- `backend/ItSupport.Api/Infrastructure/SeedData.cs` — banking CTS demo configuration
+- `backend/ItSupport.Api/Program.cs` — protected REST surface and role enforcement
+- `frontend/src/app/live-support` — reusable live-support console
+- `frontend/src/app/chat-widget` — reusable agentic assistant widget
