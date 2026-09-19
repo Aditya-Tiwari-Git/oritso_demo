@@ -1,60 +1,884 @@
 @if (!api.session()) {
-<main class="login-shell">
-  <section class="login-brand"><div class="mark">IT</div><span class="eyebrow">ORITSO IT SUPPORT CRM</span><h1>Banking support,<br><em>without the wait.</em></h1><p>One workspace for CTS incidents, clearing integrations, knowledge, and human support.</p><div class="signal"><span></span> Demo services operational</div></section>
-  <section class="login-panel"><form (ngSubmit)="signIn()"><span class="eyebrow dark">SECURE WORKSPACE</span><h2>Welcome back</h2><p>Choose a persona to explore the complete support workflow.</p><label>Username<input [(ngModel)]="login.userName" name="username" autocomplete="username" required></label><label>Password<input [(ngModel)]="login.password" name="password" type="password" autocomplete="current-password" required></label>@if(error()){<div class="alert">{{error()}}</div>}<button class="primary" type="submit">Enter Oritso IT Support CRM <span>→</span></button><div class="demo"><b>Demo personas</b><span>admin / Admin&#64;123</span><span>rahul / Rahul&#64;123</span><span>priya / Priya&#64;123</span><span>user / User&#64;123</span></div></form></section>
-</main>
+  <main class="login-shell">
+    <section class="login-brand">
+      <!-- <div class="mark">IT</div> -->
+      <span class="eyebrow" style="font-size: 18px;">ORITSO IT SUPPORT CRM</span>
+      <h1>Banking support,<br /><em>without the wait.</em></h1>
+      <p>One workspace for CTS incidents, clearing integrations, knowledge, and human support.</p>
+      <!-- <div class="signal"><span></span> Demo services operational</div> -->
+    </section>
+    <section class="login-panel">
+      <form (ngSubmit)="signIn()">
+        <span class="eyebrow dark">SECURE WORKSPACE</span>
+        <h2>Welcome</h2>
+        <!-- <p>Choose a persona to explore the complete support workflow.</p> -->
+        <label
+          >Username<input
+            [(ngModel)]="login.userName"
+            name="username"
+            autocomplete="username"
+            required /></label
+        ><label
+          >Password<input
+            [(ngModel)]="login.password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+        /></label>
+        @if (error()) {
+          <div class="alert">{{ error() }}</div>
+        }
+        <button class="primary" type="submit">Enter Oritso IT Support CRM <span>→</span></button>
+        <!-- <div class="demo">
+          <b>Demo personas</b><span>admin / Admin&#64;123</span><span>rahul / Rahul&#64;123</span
+          ><span>priya / Priya&#64;123</span><span>user / User&#64;123</span>
+        </div> -->
+      </form>
+    </section>
+  </main>
 } @else {
-<div class="shell"><aside><div class="logo"><span>IT</span><div>Oritso<small>IT Support CRM</small></div></div>
-  <nav>
-    <button [class.active]="view()==='overview'" (click)="navigate('overview')">◫ <span>{{api.session()?.role==='Admin'?'Admin Dashboard':api.session()?.role==='ITSupport'?'Agent Dashboard':'Dashboard'}}</span></button>
-    <button [class.active]="view()==='tickets'||view()==='detail'" (click)="navigate('tickets')">◎ <span>{{api.session()?.role==='User'?'My Tickets':'My Work & Group Queue'}}</span></button>
-    @if(api.session()?.role==='User'){<button [class.active]="view()==='create'" (click)="navigate('create')">＋ <span>Create Ticket</span></button>}
-    <button [class.active]="view()==='live'" (click)="navigate('live')">◉ <span>{{api.session()?.role==='User'?'Live Support':'Live Support Queue'}}</span></button>
-    <button [class.active]="view()==='knowledge'" (click)="navigate('knowledge')">◇ <span>Knowledge</span></button>
-    @if(api.session()?.role==='Admin'){<div class="nav-label">ADMIN CONSOLE</div><button [class.active]="view()==='admin'" (click)="navigate('admin')">⚙ <span>Configuration</span></button>}
-  </nav>
-  <div class="profile"><div class="avatar">{{api.session()?.displayName?.charAt(0)}}</div><div><b>{{api.session()?.displayName}}</b><small>{{api.session()?.role}}</small></div><button title="Sign out" (click)="logout()">↗</button></div>
-</aside>
-<main class="workspace"><header class="topbar"><span class="breadcrumb">ORITSO IT SUPPORT CRM / {{api.session()?.role?.toUpperCase()}} / {{view().toUpperCase()}}</span><div class="top-actions">@if(api.session()?.role==='User'){<button class="new-btn" (click)="navigate('create')">＋ New ticket</button>}<button class="icon-btn" title="Sign out" (click)="logout()">Sign out</button></div></header><div class="page">
-@if(notice()){<div class="success">{{notice()}} <button (click)="notice.set('')">×</button></div>}@if(error()){<div class="alert">{{error()}} <button (click)="error.set('')">×</button></div>}
+  <div class="shell">
+    <aside>
+      <div class="logo">
+        <span>IT</span>
+        <div>Oritso<small>IT Support CRM</small></div>
+      </div>
+      <nav>
+        <button [class.active]="view() === 'overview'" (click)="navigate('overview')">
+          ◫
+          <span>{{
+            api.session()?.role === 'Admin'
+              ? 'Admin Dashboard'
+              : api.session()?.role === 'ITSupport'
+                ? 'Agent Dashboard'
+                : 'Dashboard'
+          }}</span>
+        </button>
+        <button
+          [class.active]="view() === 'tickets' || view() === 'detail'"
+          (click)="navigate('tickets')"
+        >
+          ◎
+          <span>{{ api.session()?.role === 'User' ? 'My Tickets' : 'My Work & Group Queue' }}</span>
+        </button>
+        @if (api.session()?.role === 'User') {
+          <button [class.active]="view() === 'create'" (click)="navigate('create')">
+            ＋ <span>Create Ticket</span>
+          </button>
+        }
+        <button [class.active]="view() === 'live'" (click)="navigate('live')">
+          ◉
+          <span>{{ api.session()?.role === 'User' ? 'Live Support' : 'Live Support Queue' }}</span>
+        </button>
+        <button [class.active]="view() === 'knowledge'" (click)="navigate('knowledge')">
+          ◇ <span>Knowledge</span>
+        </button>
+        @if (api.session()?.role === 'Admin') {
+          <div class="nav-label">ADMIN CONSOLE</div>
+          <button [class.active]="view() === 'admin'" (click)="navigate('admin')">
+            ⚙ <span>Configuration</span>
+          </button>
+        }
+      </nav>
+      <div class="profile">
+        <div class="avatar">{{ api.session()?.displayName?.charAt(0) }}</div>
+        <div>
+          <b>{{ api.session()?.displayName }}</b
+          ><small>{{ api.session()?.role }}</small>
+        </div>
+        <button title="Sign out" (click)="logout()">↗</button>
+      </div>
+    </aside>
+    <main class="workspace">
+      <header class="topbar">
+        <span class="breadcrumb"
+          >ORITSO IT SUPPORT CRM / {{ api.session()?.role?.toUpperCase() }} /
+          {{ view().toUpperCase() }}</span
+        >
+        <div class="top-actions">
+          @if (api.session()?.role === 'User') {
+            <button class="new-btn" (click)="navigate('create')">＋ New ticket</button>
+          }
+          <button class="icon-btn" title="Sign out" (click)="logout()">Sign out</button>
+        </div>
+      </header>
+      <div class="page">
+        @if (notice()) {
+          <div class="success">{{ notice() }} <button (click)="notice.set('')">×</button></div>
+        }
+        @if (error()) {
+          <div class="alert">{{ error() }} <button (click)="error.set('')">×</button></div>
+        }
 
-@if(view()==='overview') {
-<section class="hero"><div><span class="eyebrow dark">{{api.session()?.role==='User'?'MY SUPPORT':api.session()?.role==='ITSupport'?'AGENT WORKSPACE':'SERVICE GOVERNANCE'}}</span><h1>Good {{greeting()}}, {{api.session()?.displayName?.split(' ')?.[0]}}.</h1><p>@if(api.session()?.role==='User'){Track your incidents, get CTS guidance, or connect with support.}@else if(api.session()?.role==='ITSupport'){Your dashboard is scoped to your assignment group queues.}@else{Monitor support operations and configure the service model.}</p></div><button class="outline" (click)="load()">↻ Refresh</button></section>
-<section class="metrics"><article><span>{{api.session()?.role==='User'?'My open tickets':'Open workload'}}</span><strong>{{metrics().active}}</strong><small>Requires attention</small></article><article><span>{{api.session()?.role==='ITSupport'?'Group queue':'Total requests'}}</span><strong>{{metrics().total}}</strong><small>Visible to your role</small></article><article class="accent"><span>Major incidents</span><strong>{{metrics().major}}</strong><small>Organization-wide impact</small></article><article><span>Resolved</span><strong>{{metrics().resolved}}</strong><small>Completed work</small></article></section>
-<section class="quick-grid">@if(api.session()?.role==='User'){<button (click)="navigate('create')"><b>Raise an incident</b><small>Auto-route a CTS or CBS issue</small></button><button (click)="navigate('live')"><b>Talk to an agent</b><small>Enter the realtime support queue</small></button>}@else{<button (click)="navigate('tickets')"><b>Open group queue</b><small>Accept and investigate assigned work</small></button><button (click)="navigate('live')"><b>Live support queue</b><small>Accept waiting conversations</small></button>}</section>
-<section class="panel"><div class="panel-head"><div><h2>Recently updated</h2><p>Latest activity in your authorized queue</p></div><button class="text-btn" (click)="navigate('tickets')">View all →</button></div><ng-container *ngTemplateOutlet="ticketTable"></ng-container></section>
+        @if (view() === 'overview') {
+          <section class="hero">
+            <div>
+              <span class="eyebrow dark">{{
+                api.session()?.role === 'User'
+                  ? 'MY SUPPORT'
+                  : api.session()?.role === 'ITSupport'
+                    ? 'AGENT WORKSPACE'
+                    : 'SERVICE GOVERNANCE'
+              }}</span>
+              <h1>Good {{ greeting() }}, {{ api.session()?.displayName?.split(' ')?.[0] }}.</h1>
+              <p>
+                @if (api.session()?.role === 'User') {
+                  Track your incidents, get CTS guidance, or connect with support.
+                } @else if (api.session()?.role === 'ITSupport') {
+                  Your dashboard is scoped to your assignment group queues.
+                } @else {
+                  Operational Dashboard
+                }
+              </p>
+            </div>
+            <button class="outline" (click)="load()">↻ Refresh</button>
+          </section>
+          <section class="metrics">
+            <article>
+              <span>{{
+                api.session()?.role === 'ITSupport' ? 'Group queue' : 'Overall Volume'
+              }}</span
+              ><strong>{{ metrics().total }}</strong
+              ><small>Visible to your role</small>
+            </article>
+            <article class="accent">
+              <span>Major incidents</span><strong>{{ metrics().major }}</strong
+              ><small>Organization-wide impact</small>
+            </article>
+            <article>
+              <span>{{ api.session()?.role === 'User' ? 'My open tickets' : 'Group Open Incidents' }}</span
+              ><strong>{{ metrics().active }}</strong
+              ><small>Requires attention</small>
+            </article>
+            <article>
+              <span>Resolved</span><strong>{{ metrics().resolved }}</strong
+              ><small>Completed work</small>
+            </article>
+          </section>
+          <section class="quick-grid">
+            @if (api.session()?.role === 'User') {
+              <button (click)="navigate('create')">
+                <b>Raise an incident</b><small>Auto-route a CTS or CBS issue</small></button
+              ><button (click)="navigate('live')">
+                <b>Talk to an agent</b><small>Enter the realtime support queue</small>
+              </button>
+            } @else {
+              <button (click)="navigate('tickets')">
+                <b>Open group queue</b><small>Accept and investigate assigned work</small></button
+              ><button (click)="navigate('live')">
+                <b>Live support queue</b><small>Accept waiting conversations</small>
+              </button>
+            }
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Recently updated</h2>
+                <p>Latest activity in your authorized queue</p>
+              </div>
+              <button class="text-btn" (click)="navigate('tickets')">View all →</button>
+            </div>
+            <ng-container *ngTemplateOutlet="ticketTable"></ng-container>
+          </section>
+        }
+
+        @if (view() === 'tickets') {
+          <section class="page-title">
+            <div>
+              <span class="eyebrow dark">{{
+                api.session()?.role === 'User' ? 'MY REQUESTS' : 'AUTHORIZED QUEUE'
+              }}</span>
+              <h1>{{ api.session()?.role === 'User' ? 'My Tickets' : 'Agent Work Queue' }}</h1>
+              <p>
+                {{
+                  api.session()?.role === 'ITSupport'
+                    ? 'Tickets routed to your assignment groups or assigned directly to you.'
+                    : 'Track incidents from intake through resolution.'
+                }}
+              </p>
+            </div>
+            @if (api.session()?.role === 'User') {
+              <button class="primary compact" (click)="navigate('create')">＋ Create ticket</button>
+            }
+          </section>
+          <section class="panel">
+            <ng-container *ngTemplateOutlet="ticketTable"></ng-container>
+          </section>
+        }
+
+        @if (view() === 'create') {
+          <section class="page-title">
+            <div>
+              <span class="eyebrow dark">BANKING CTS INTAKE</span>
+              <h1>Report an issue</h1>
+              <p>Structured information helps the routing engine send work to the right team.</p>
+            </div>
+          </section>
+          <form class="ticket-form" (ngSubmit)="createTicket()">
+            <div class="form-section">
+              <span class="section-number">01</span>
+              <div>
+                <h3>Issue type</h3>
+                <p>Select the scope.</p>
+              </div>
+              <div class="choice-row">
+                <label [class.chosen]="ticket.type === 'Incident'"
+                  ><input type="radio" [(ngModel)]="ticket.type" name="type" value="Incident" /><b
+                    >Incident</b
+                  ><small>Individual or branch issue</small></label
+                ><label [class.chosen]="ticket.type === 'Major Incident'"
+                  ><input
+                    type="radio"
+                    [(ngModel)]="ticket.type"
+                    name="type"
+                    value="Major Incident"
+                  /><b>Major incident</b><small>Critical service or widespread impact</small></label
+                >
+              </div>
+            </div>
+            <div class="form-section">
+              <span class="section-number">02</span>
+              <div>
+                <h3>Classification</h3>
+                <p>Drives assignment.</p>
+              </div>
+              <div class="fields">
+                <label
+                  >Category<select
+                    [(ngModel)]="ticket.category"
+                    name="category"
+                    (ngModelChange)="ticket.subcategory = subcategories()[0]?.name || ''"
+                  >
+                    @for (x of catalog().categories; track x.id) {
+                      <option>{{ x.name }}</option>
+                    }
+                  </select></label
+                ><label
+                  >Subcategory<select [(ngModel)]="ticket.subcategory" name="subcategory">
+                    @for (x of subcategories(); track x.id) {
+                      <option>{{ x.name }}</option>
+                    }
+                  </select></label
+                ><label
+                  >Affected service<select [(ngModel)]="ticket.service" name="service">
+                    @for (x of catalog().services; track x.id) {
+                      <option>{{ x.name }}</option>
+                    }
+                  </select></label
+                ><label
+                  >Impact<select [(ngModel)]="ticket.impact" name="impact">
+                    <option>Single User</option>
+                    <option>Multiple Users</option>
+                    <option>Entire Branch</option>
+                    <option>Multiple Branches</option>
+                  </select></label
+                ><label
+                  >Urgency<select [(ngModel)]="ticket.urgency" name="urgency">
+                    <option>Low</option>
+                    <option>Medium</option>
+                    <option>High</option>
+                    <option>Critical</option>
+                  </select></label
+                >
+                <div class="auto-priority">
+                  <span>Priority</span><b>Calculated automatically</b
+                  ><small>Based on Admin-configured rules</small>
+                </div>
+              </div>
+            </div>
+            <div class="form-section">
+              <span class="section-number">03</span>
+              <div>
+                <h3>Issue details</h3>
+                <p>Include errors and attempts.</p>
+              </div>
+              <div class="fields">
+                <label class="wide"
+                  >Short description<input
+                    [(ngModel)]="ticket.title"
+                    name="title"
+                    maxlength="140"
+                    required
+                    placeholder="e.g. Scanner disconnects during outward clearing" /></label
+                ><label class="wide"
+                  >Detailed description<textarea
+                    [(ngModel)]="ticket.description"
+                    name="description"
+                    maxlength="4000"
+                    rows="7"
+                    required
+                    placeholder="What happened, when did it start, who is affected, exact error, and what has already been tried?"
+                  ></textarea></label
+                ><label class="wide create-file"
+                  >Attachment or screenshot (optional)<input
+                    type="file"
+                    (change)="selectCreateAttachment($event)"
+                    accept="image/png,image/jpeg,application/pdf,text/plain,application/zip"
+                  /><small>PNG, JPG, PDF, text, or ZIP · maximum 10 MB</small></label
+                >
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="outline" type="button" (click)="navigate('tickets')">Cancel</button
+              ><button class="primary" type="submit" [disabled]="loading()">
+                {{ loading() ? 'Creating…' : 'Create & auto-route' }} →
+              </button>
+            </div>
+          </form>
+        }
+
+        @if (view() === 'detail' && selected(); as t) {
+          <button class="back" (click)="navigate('tickets')">← Back to queue</button>
+          <section class="detail-head">
+            <div>
+              <div class="ticket-flags">
+                <span class="ticket-no">{{ t.number }}</span>
+                @if (t.isEscalated) {
+                  <span class="escalated">ESCALATED</span>
+                }
+                @if (t.parentMajorIncidentId) {
+                  <span class="linked-major">MAJOR #{{ t.parentMajorIncidentId }}</span>
+                }
+              </div>
+              <h1>{{ t.title }}</h1>
+              <p>{{ t.description }}</p>
+            </div>
+            <span class="status" [attr.data-status]="t.status">{{ t.status }}</span>
+          </section>
+          <div class="detail-grid">
+            <section class="panel timeline">
+              <h2>Complete activity</h2>
+              @for (h of t.history; track h.id) {
+                <article>
+                  <span class="dot"></span>
+                  <div>
+                    <b>{{ h.action }}</b>
+                    <p>{{ h.detail }}</p>
+                    <small>{{ h.actor }} · {{ h.createdAt | date: 'medium' }}</small>
+                  </div>
+                </article>
+              }
+              @for (c of t.comments; track c.id) {
+                <article>
+                  <span class="dot comment-dot"></span>
+                  <div>
+                    <b>Public comment · {{ c.author }}</b>
+                    <p>{{ c.body }}</p>
+                    <small>{{ c.createdAt | date: 'medium' }}</small>
+                  </div>
+                </article>
+              }
+              @if (api.session()?.role !== 'User') {
+                @for (n of t.workNotes; track n.id) {
+                  <article class="internal">
+                    <span class="dot"></span>
+                    <div>
+                      <b>Internal work note · {{ n.author }}</b>
+                      <p>{{ n.body }}</p>
+                      <small>{{ n.createdAt | date: 'medium' }}</small>
+                    </div>
+                  </article>
+                }
+              }
+              <form class="comment" (ngSubmit)="addComment()">
+                <textarea
+                  [(ngModel)]="comment"
+                  name="comment"
+                  placeholder="Add a public update…"
+                  required
+                ></textarea
+                ><button class="primary compact">Post update</button>
+              </form>
+              @if (api.session()?.role !== 'User') {
+                <form class="comment internal-form" (ngSubmit)="addWorkNote()">
+                  <textarea
+                    [(ngModel)]="workNote"
+                    name="work-note"
+                    placeholder="Add private investigation/work note…"
+                    required
+                  ></textarea
+                  ><button class="primary compact">Add work note</button>
+                </form>
+              }
+            </section>
+            <aside class="panel properties">
+              <h2>Ticket details</h2>
+              <dl>
+                <dt>Type</dt>
+                <dd>{{ t.type }}</dd>
+                <dt>Priority</dt>
+                <dd>
+                  <span class="priority" [attr.data-p]="t.priority">{{ t.priority }}</span>
+                </dd>
+                <dt>Impact</dt>
+                <dd>{{ t.impact }}</dd>
+                <dt>Urgency</dt>
+                <dd>{{ t.urgency }}</dd>
+                <dt>Category</dt>
+                <dd>{{ t.category }}</dd>
+                <dt>Subcategory</dt>
+                <dd>{{ t.subcategory }}</dd>
+                <dt>Service</dt>
+                <dd>{{ t.service }}</dd>
+                <dt>Assignment group</dt>
+                <dd>{{ groupName(t.assignmentGroupId) }}</dd>
+                <dt>Assigned agent</dt>
+                <dd>{{ t.assignedAgent || 'Unassigned' }}</dd>
+              </dl>
+              <div class="requester-card">
+                <span>Created by</span><b>{{ t.createdByDisplayName || t.createdBy }}</b>
+                @if (t.createdByEmail) {
+                  <a [href]="'mailto:' + t.createdByEmail">{{ t.createdByEmail }}</a>
+                  @if (api.session()?.role !== 'User') {
+                    <a
+                      class="teams-button"
+                      [href]="teamsLink(t.createdByEmail)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >Chat on Teams ↗</a
+                    >
+                  }
+                } @else {
+                  <small>No email address available</small>
+                }
+              </div>
+              @if (api.session()?.role !== 'User') {
+                <button class="primary compact accept" (click)="acceptTicket()">
+                  Accept / assign to me</button
+                ><label
+                  >Status<select
+                    [ngModel]="t.status"
+                    (ngModelChange)="updateTicket({ status: $event })"
+                    name="status"
+                  >
+                    @for (s of catalog().statuses; track s.id) {
+                      <option>{{ s.name }}</option>
+                    }
+                  </select></label
+                ><label
+                  >Priority<select
+                    [ngModel]="t.priority"
+                    (ngModelChange)="updateTicket({ priority: $event })"
+                    name="priority"
+                  >
+                    @for (p of catalog().priorities; track p.id) {
+                      <option>{{ p.name }}</option>
+                    }
+                  </select></label
+                ><label
+                  >Transfer group<select
+                    [ngModel]="t.assignmentGroupId"
+                    (ngModelChange)="updateTicket({ assignmentGroupId: $event })"
+                    name="group"
+                  >
+                    @for (g of catalog().assignmentGroups; track g.id) {
+                      <option [ngValue]="g.id">{{ g.name }}</option>
+                    }
+                  </select></label
+                ><label
+                  >Related major incident ID
+                  <div class="inline-form">
+                    <input type="number" [(ngModel)]="majorLinkId" placeholder="Ticket ID" /><button
+                      (click)="updateTicket({ parentMajorIncidentId: majorLinkId })"
+                    >
+                      Link
+                    </button>
+                  </div></label
+                ><button class="outline action" (click)="updateTicket({ escalate: true })">
+                  Escalate ticket
+                </button>
+                <div class="resolve">
+                  <h3>Resolve ticket</h3>
+                  <select [(ngModel)]="resolution.code">
+                    <option>Solved (Permanently)</option>
+                    <option>Workaround</option>
+                    <option>Duplicate</option>
+                    <option>Unable to Reproduce</option></select
+                  ><textarea
+                    [(ngModel)]="resolution.notes"
+                    placeholder="Mandatory resolution notes"
+                  ></textarea
+                  ><button (click)="resolveTicket()">Resolve</button>
+                </div>
+              }
+              <label class="upload"
+                >Attach evidence/logs<input
+                  type="file"
+                  (change)="upload($event)"
+                  accept="image/png,image/jpeg,application/pdf,text/plain,application/zip"
+              /></label>
+              @for (a of t.attachments; track a.id) {
+                <button class="attachment" (click)="api.download(a)">↓ {{ a.originalName }}</button>
+              }
+            </aside>
+          </div>
+        }
+
+        @if (view() === 'live') {
+          <section class="page-title">
+            <div>
+              <span class="eyebrow dark">REALTIME ASSISTANCE</span>
+              <h1>{{ api.session()?.role === 'User' ? 'Live Support' : 'Live Support Queue' }}</h1>
+              <p>Waiting, active, and completed conversations are persisted for audit.</p>
+            </div>
+          </section>
+          <it-live-support></it-live-support>
+        }
+        @if (view() === 'knowledge') {
+          <section class="page-title">
+            <div>
+              <span class="eyebrow dark">APPROVED GUIDANCE</span>
+              <h1>CTS Knowledge Base</h1>
+              <p>Knowledge-grounded procedures used by users, agents, and the IT assistant.</p>
+            </div>
+          </section>
+          <section class="article-grid">
+            @for (a of admin().articles; track a.id) {
+              <article>
+                <span>{{ a.category }} / {{ a.subcategory }}</span>
+                <h2>{{ a.title }}</h2>
+                <p>{{ a.content }}</p>
+              </article>
+            }
+          </section>
+        }
+
+        @if (view() === 'admin') {
+          <section class="page-title">
+            <div>
+              <span class="eyebrow dark">ADMIN CONSOLE</span>
+              <h1>Service configuration</h1>
+              <p>Manage people, queues, routing, knowledge, and AI diagnostics.</p>
+            </div>
+            <div class="bot-health" [class.enabled]="admin().botStatus?.enabled">
+              OpenAI {{ admin().botStatus?.enabled ? 'enabled' : 'local fallback' }} ·
+              {{ admin().botStatus?.model }}
+            </div>
+          </section>
+          <div class="admin-grid">
+            <section class="panel admin-wide">
+              <h2>Users, agents & assignment membership</h2>
+              <div class="user-create">
+                <input [(ngModel)]="userEditor.userName" placeholder="Username" /><input
+                  [(ngModel)]="userEditor.displayName"
+                  placeholder="Display name"
+                /><input
+                  [(ngModel)]="userEditor.email"
+                  type="email"
+                  placeholder="Email address"
+                /><select [(ngModel)]="userEditor.role">
+                  <option>User</option>
+                  <option>ITSupport</option>
+                  <option>Admin</option></select
+                ><input
+                  [(ngModel)]="userEditor.password"
+                  type="password"
+                  placeholder="Initial password (8+ chars)"
+                /><button (click)="saveUser()">Add user</button>
+              </div>
+              <div class="agent-table">
+                @for (u of admin().users; track u.userName) {
+                  <article>
+                    <div>
+                      <b>{{ u.displayName }}</b
+                      ><small>{{ u.userName }}</small
+                      ><input
+                        class="user-email"
+                        [(ngModel)]="u.email"
+                        type="email"
+                        placeholder="Email address"
+                      />
+                      <div class="user-role">
+                        <select [(ngModel)]="u.role">
+                          <option>User</option>
+                          <option>ITSupport</option>
+                          <option>Admin</option></select
+                        ><label><input type="checkbox" [(ngModel)]="u.isActive" /> Active</label
+                        ><button (click)="saveUser(u)">Save</button>
+                      </div>
+                    </div>
+                    @if (u.role === 'ITSupport') {
+                      <div class="membership">
+                        @for (g of admin().groups; track g.id) {
+                          <label
+                            ><input
+                              type="checkbox"
+                              [checked]="hasMembership(u.userName, g.id)"
+                              (change)="
+                                saveMembership(u.userName, g.id, $any($event.target).checked)
+                              "
+                            />{{ g.name }}</label
+                          >
+                        }
+                      </div>
+                    }
+                  </article>
+                }
+              </div>
+            </section>
+            <section class="panel">
+              <h2>Catalog & support teams</h2>
+              <div class="inline-form">
+                <select [(ngModel)]="newItem.kind">
+                  <option value="groups">Assignment group</option>
+                  <option value="categories">Category</option>
+                  <option value="subcategories">Subcategory</option>
+                  <option value="services">Service</option>
+                  <option value="priorities">Priority</option>
+                  <option value="statuses">Status</option>
+                </select>
+                @if (newItem.kind === 'subcategories') {
+                  <select [(ngModel)]="newItem.categoryId">
+                    <option [ngValue]="null">Parent category</option>
+                    @for (c of admin().categories; track c.id) {
+                      <option [ngValue]="c.id">{{ c.name }}</option>
+                    }
+                  </select>
+                }
+                <input [(ngModel)]="newItem.name" placeholder="Item name" /><button
+                  (click)="addItem()"
+                >
+                  Add
+                </button>
+              </div>
+              <h3>Assignment groups</h3>
+              @for (x of admin().groups; track x.id) {
+                <div class="config-row">
+                  <span>{{ x.name }}</span
+                  ><button (click)="remove('groups', x.id)">×</button>
+                </div>
+              }
+              <h3>Categories & subcategories</h3>
+              @for (x of admin().categories; track x.id) {
+                <div class="config-row">
+                  <span
+                    ><b>{{ x.name }}</b
+                    ><small>
+                      @for (s of x.subcategories; track s.id) {
+                        {{ s.name }} ·
+                      }
+                    </small></span
+                  >
+                </div>
+              }
+              <h3>Priorities & statuses</h3>
+              <div class="chips">
+                @for (x of admin().priorities; track x.id) {
+                  <span>{{ x.name }}</span>
+                }
+                @for (x of admin().statuses; track x.id) {
+                  <span>{{ x.name }}</span>
+                }
+              </div>
+            </section>
+            <section class="panel">
+              <h2>Ordered routing rules</h2>
+              <p class="admin-hint">
+                Keywords also match normalized URLs and host/domain text, case-insensitively.
+              </p>
+              <div class="admin-form">
+                <input [(ngModel)]="rule.name" placeholder="Rule name" />
+                <div class="two">
+                  <input type="number" [(ngModel)]="rule.order" placeholder="Order" /><select
+                    [(ngModel)]="rule.assignmentGroupId"
+                  >
+                    <option [ngValue]="null">Route to…</option>
+                    @for (x of admin().groups; track x.id) {
+                      <option [ngValue]="x.id">{{ x.name }}</option>
+                    }
+                  </select>
+                </div>
+                <input [(ngModel)]="rule.category" placeholder="Category (blank = any)" /><input
+                  [(ngModel)]="rule.subcategory"
+                  placeholder="Subcategory (blank = any)"
+                /><input [(ngModel)]="rule.service" placeholder="Service (blank = any)" /><input
+                  [(ngModel)]="rule.keywords"
+                  placeholder="Keywords or domains, comma separated"
+                /><button (click)="addRule()">Add routing rule</button>
+              </div>
+              @for (x of admin().rules; track x.id) {
+                <div class="rule">
+                  <div>
+                    <b>{{ x.order }} · {{ x.name }}</b
+                    ><small
+                      >{{ x.category || 'Any' }} / {{ x.subcategory || 'Any' }} /
+                      {{ x.service || 'Any service' }} → {{ groupName(x.assignmentGroupId) }}</small
+                    ><small>Match: {{ x.keywords || 'classification fields only' }}</small>
+                  </div>
+                  <button (click)="remove('rules', x.id)">×</button>
+                </div>
+              }
+            </section>
+            <section class="panel admin-wide">
+              <div class="panel-head">
+                <div>
+                  <h2>Automatic priority rules</h2>
+                  <p>Rules are evaluated by ascending order; the first complete match wins.</p>
+                </div>
+              </div>
+              <div class="priority-rule-create">
+                <input [(ngModel)]="priorityRule.name" placeholder="Rule name" /><input
+                  [(ngModel)]="priorityRule.keywords"
+                  placeholder="Keywords or domains, comma separated"
+                /><input
+                  [(ngModel)]="priorityRule.category"
+                  placeholder="Category (optional)"
+                /><input
+                  [(ngModel)]="priorityRule.service"
+                  placeholder="Service (optional)"
+                /><select [(ngModel)]="priorityRule.priority">
+                  @for (p of admin().priorities; track p.id) {
+                    <option>{{ p.name }}</option>
+                  }</select
+                ><input type="number" [(ngModel)]="priorityRule.order" placeholder="Order" /><input
+                  class="rule-description"
+                  [(ngModel)]="priorityRule.description"
+                  placeholder="Description (optional)"
+                /><button (click)="addPriorityRule()">Add priority rule</button>
+              </div>
+              <div class="priority-rule-table">
+                <div class="priority-rule heading">
+                  <span>Rule</span><span>Match</span><span>Priority</span><span>Order</span
+                  ><span>Status</span><span></span>
+                </div>
+                @for (r of admin().priorityRules; track r.id) {
+                  <div class="priority-rule">
+                    <span
+                      ><input [(ngModel)]="r.name" /><small>{{
+                        r.description || 'No description'
+                      }}</small></span
+                    ><span
+                      ><input [(ngModel)]="r.keywords" placeholder="Fallback when blank" /><small
+                        >{{ r.category || 'Any category' }} ·
+                        {{ r.service || 'Any service' }}</small
+                      ></span
+                    ><select [(ngModel)]="r.priority">
+                      @for (p of admin().priorities; track p.id) {
+                        <option>{{ p.name }}</option>
+                      }</select
+                    ><input type="number" [(ngModel)]="r.order" /><label
+                      ><input type="checkbox" [(ngModel)]="r.isActive" />
+                      {{ r.isActive ? 'Active' : 'Disabled' }}</label
+                    ><span class="rule-actions"
+                      ><button (click)="savePriorityRule(r)">Save</button
+                      ><button class="danger-link" (click)="remove('priority-rules', r.id)">
+                        Delete
+                      </button></span
+                    >
+                  </div>
+                }
+              </div>
+            </section>
+            <section class="panel admin-wide">
+              <h2>Knowledge base</h2>
+              <div class="article-form">
+                <input [(ngModel)]="article.title" placeholder="Article title" /><input
+                  [(ngModel)]="article.category"
+                  placeholder="Category"
+                /><input [(ngModel)]="article.subcategory" placeholder="Subcategory" /><input
+                  [(ngModel)]="article.keywords"
+                  placeholder="Search keywords"
+                /><textarea
+                  [(ngModel)]="article.content"
+                  placeholder="Approved troubleshooting and collection steps"
+                ></textarea
+                ><button (click)="addArticle()">Publish article</button>
+              </div>
+              @for (x of admin().articles; track x.id) {
+                <div class="config-row">
+                  <span
+                    ><b>{{ x.title }}</b
+                    ><small>{{ x.category }} / {{ x.subcategory }}</small></span
+                  ><button (click)="remove('articles', x.id)">×</button>
+                </div>
+              }
+            </section>
+            <section class="panel admin-wide danger-zone">
+              <h2>Administrative data deletion</h2>
+              <p>
+                Permanently remove operational demo data. Each deletion is backend-authorized and
+                leaves an audit tombstone.
+              </p>
+              <div class="deletion-grid">
+                <div>
+                  <h3>Tickets & incidents</h3>
+                  @for (x of admin().deletionInventory.tickets; track x.id) {
+                    <div class="delete-row">
+                      <span
+                        ><b>{{ x.number }}</b
+                        ><small>{{ x.title }} · {{ x.status }}</small></span
+                      ><button (click)="deleteOperationalData('tickets', x)">Delete</button>
+                    </div>
+                  } @empty {
+                    <small>No tickets.</small>
+                  }
+                </div>
+                <div>
+                  <h3>AI chatbot sessions</h3>
+                  @for (x of admin().deletionInventory.chatSessions; track x.id) {
+                    <div class="delete-row">
+                      <span
+                        ><b>{{ x.publicId }}</b
+                        ><small>{{ x.userName }} · {{ x.messageCount }} messages</small></span
+                      ><button (click)="deleteOperationalData('chat-sessions', x)">Delete</button>
+                    </div>
+                  } @empty {
+                    <small>No chatbot sessions.</small>
+                  }
+                </div>
+                <div>
+                  <h3>Live Support transcripts</h3>
+                  @for (x of admin().deletionInventory.liveSessions; track x.id) {
+                    <div class="delete-row">
+                      <span
+                        ><b>{{ x.subject }}</b
+                        ><small
+                          >{{ x.requestedBy }} · {{ x.messageCount }} messages ·
+                          {{ x.status }}</small
+                        ></span
+                      ><button (click)="deleteOperationalData('live-sessions', x)">Delete</button>
+                    </div>
+                  } @empty {
+                    <small>No live sessions.</small>
+                  }
+                </div>
+              </div>
+            </section>
+          </div>
+        }
+      </div>
+    </main>
+    <it-chat-widget></it-chat-widget>
+  </div>
 }
-
-@if(view()==='tickets') { <section class="page-title"><div><span class="eyebrow dark">{{api.session()?.role==='User'?'MY REQUESTS':'AUTHORIZED QUEUE'}}</span><h1>{{api.session()?.role==='User'?'My Tickets':'Agent Work Queue'}}</h1><p>{{api.session()?.role==='ITSupport'?'Tickets routed to your assignment groups or assigned directly to you.':'Track incidents from intake through resolution.'}}</p></div>@if(api.session()?.role==='User'){<button class="primary compact" (click)="navigate('create')">＋ Create ticket</button>}</section><section class="panel"><ng-container *ngTemplateOutlet="ticketTable"></ng-container></section> }
-
-@if(view()==='create') {
-<section class="page-title"><div><span class="eyebrow dark">BANKING CTS INTAKE</span><h1>Report an issue</h1><p>Structured information helps the routing engine send work to the right team.</p></div></section>
-<form class="ticket-form" (ngSubmit)="createTicket()"><div class="form-section"><span class="section-number">01</span><div><h3>Issue type</h3><p>Select the scope.</p></div><div class="choice-row"><label [class.chosen]="ticket.type==='Incident'"><input type="radio" [(ngModel)]="ticket.type" name="type" value="Incident"><b>Incident</b><small>Individual or branch issue</small></label><label [class.chosen]="ticket.type==='Major Incident'"><input type="radio" [(ngModel)]="ticket.type" name="type" value="Major Incident"><b>Major incident</b><small>Critical service or widespread impact</small></label></div></div>
-<div class="form-section"><span class="section-number">02</span><div><h3>Classification</h3><p>Drives assignment.</p></div><div class="fields"><label>Category<select [(ngModel)]="ticket.category" name="category" (ngModelChange)="ticket.subcategory=subcategories()[0]?.name||''">@for(x of catalog().categories;track x.id){<option>{{x.name}}</option>}</select></label><label>Subcategory<select [(ngModel)]="ticket.subcategory" name="subcategory">@for(x of subcategories();track x.id){<option>{{x.name}}</option>}</select></label><label>Affected service<select [(ngModel)]="ticket.service" name="service">@for(x of catalog().services;track x.id){<option>{{x.name}}</option>}</select></label><label>Impact<select [(ngModel)]="ticket.impact" name="impact"><option>Single User</option><option>Multiple Users</option><option>Entire Branch</option><option>Multiple Branches</option></select></label><label>Urgency<select [(ngModel)]="ticket.urgency" name="urgency"><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select></label><div class="auto-priority"><span>Priority</span><b>Calculated automatically</b><small>Based on Admin-configured rules</small></div></div></div>
-<div class="form-section"><span class="section-number">03</span><div><h3>Issue details</h3><p>Include errors and attempts.</p></div><div class="fields"><label class="wide">Short description<input [(ngModel)]="ticket.title" name="title" maxlength="140" required placeholder="e.g. Scanner disconnects during outward clearing"></label><label class="wide">Detailed description<textarea [(ngModel)]="ticket.description" name="description" maxlength="4000" rows="7" required placeholder="What happened, when did it start, who is affected, exact error, and what has already been tried?"></textarea></label><label class="wide create-file">Attachment or screenshot (optional)<input type="file" (change)="selectCreateAttachment($event)" accept="image/png,image/jpeg,application/pdf,text/plain,application/zip"><small>PNG, JPG, PDF, text, or ZIP · maximum 10 MB</small></label></div></div><div class="form-actions"><button class="outline" type="button" (click)="navigate('tickets')">Cancel</button><button class="primary" type="submit" [disabled]="loading()">{{loading()?'Creating…':'Create & auto-route'}} →</button></div></form>
-}
-
-@if(view()==='detail' && selected(); as t) {
-<button class="back" (click)="navigate('tickets')">← Back to queue</button><section class="detail-head"><div><div class="ticket-flags"><span class="ticket-no">{{t.number}}</span>@if(t.isEscalated){<span class="escalated">ESCALATED</span>}@if(t.parentMajorIncidentId){<span class="linked-major">MAJOR #{{t.parentMajorIncidentId}}</span>}</div><h1>{{t.title}}</h1><p>{{t.description}}</p></div><span class="status" [attr.data-status]="t.status">{{t.status}}</span></section>
-<div class="detail-grid"><section class="panel timeline"><h2>Complete activity</h2>@for(h of t.history;track h.id){<article><span class="dot"></span><div><b>{{h.action}}</b><p>{{h.detail}}</p><small>{{h.actor}} · {{h.createdAt|date:'medium'}}</small></div></article>}@for(c of t.comments;track c.id){<article><span class="dot comment-dot"></span><div><b>Public comment · {{c.author}}</b><p>{{c.body}}</p><small>{{c.createdAt|date:'medium'}}</small></div></article>}@if(api.session()?.role!=='User'){@for(n of t.workNotes;track n.id){<article class="internal"><span class="dot"></span><div><b>Internal work note · {{n.author}}</b><p>{{n.body}}</p><small>{{n.createdAt|date:'medium'}}</small></div></article>}}
-<form class="comment" (ngSubmit)="addComment()"><textarea [(ngModel)]="comment" name="comment" placeholder="Add a public update…" required></textarea><button class="primary compact">Post update</button></form>@if(api.session()?.role!=='User'){<form class="comment internal-form" (ngSubmit)="addWorkNote()"><textarea [(ngModel)]="workNote" name="work-note" placeholder="Add private investigation/work note…" required></textarea><button class="primary compact">Add work note</button></form>}</section>
-<aside class="panel properties"><h2>Ticket details</h2><dl><dt>Type</dt><dd>{{t.type}}</dd><dt>Priority</dt><dd><span class="priority" [attr.data-p]="t.priority">{{t.priority}}</span></dd><dt>Impact</dt><dd>{{t.impact}}</dd><dt>Urgency</dt><dd>{{t.urgency}}</dd><dt>Category</dt><dd>{{t.category}}</dd><dt>Subcategory</dt><dd>{{t.subcategory}}</dd><dt>Service</dt><dd>{{t.service}}</dd><dt>Assignment group</dt><dd>{{groupName(t.assignmentGroupId)}}</dd><dt>Assigned agent</dt><dd>{{t.assignedAgent||'Unassigned'}}</dd></dl><div class="requester-card"><span>Created by</span><b>{{t.createdByDisplayName||t.createdBy}}</b>@if(t.createdByEmail){<a [href]="'mailto:'+t.createdByEmail">{{t.createdByEmail}}</a>@if(api.session()?.role!=='User'){<a class="teams-button" [href]="teamsLink(t.createdByEmail)" target="_blank" rel="noopener noreferrer">Chat on Teams ↗</a>}}@else{<small>No email address available</small>}</div>
-@if(api.session()?.role!=='User'){<button class="primary compact accept" (click)="acceptTicket()">Accept / assign to me</button><label>Status<select [ngModel]="t.status" (ngModelChange)="updateTicket({status:$event})" name="status">@for(s of catalog().statuses;track s.id){<option>{{s.name}}</option>}</select></label><label>Priority<select [ngModel]="t.priority" (ngModelChange)="updateTicket({priority:$event})" name="priority">@for(p of catalog().priorities;track p.id){<option>{{p.name}}</option>}</select></label><label>Transfer group<select [ngModel]="t.assignmentGroupId" (ngModelChange)="updateTicket({assignmentGroupId:$event})" name="group">@for(g of catalog().assignmentGroups;track g.id){<option [ngValue]="g.id">{{g.name}}</option>}</select></label><label>Related major incident ID<div class="inline-form"><input type="number" [(ngModel)]="majorLinkId" placeholder="Ticket ID"><button (click)="updateTicket({parentMajorIncidentId:majorLinkId})">Link</button></div></label><button class="outline action" (click)="updateTicket({escalate:true})">Escalate ticket</button><div class="resolve"><h3>Resolve ticket</h3><select [(ngModel)]="resolution.code"><option>Solved (Permanently)</option><option>Workaround</option><option>Duplicate</option><option>Unable to Reproduce</option></select><textarea [(ngModel)]="resolution.notes" placeholder="Mandatory resolution notes"></textarea><button (click)="resolveTicket()">Resolve</button></div>}
-<label class="upload">Attach evidence/logs<input type="file" (change)="upload($event)" accept="image/png,image/jpeg,application/pdf,text/plain,application/zip"></label>@for(a of t.attachments;track a.id){<button class="attachment" (click)="api.download(a)">↓ {{a.originalName}}</button>}</aside></div>
-}
-
-@if(view()==='live') { <section class="page-title"><div><span class="eyebrow dark">REALTIME ASSISTANCE</span><h1>{{api.session()?.role==='User'?'Live Support':'Live Support Queue'}}</h1><p>Waiting, active, and completed conversations are persisted for audit.</p></div></section><it-live-support></it-live-support> }
-@if(view()==='knowledge') { <section class="page-title"><div><span class="eyebrow dark">APPROVED GUIDANCE</span><h1>CTS Knowledge Base</h1><p>Knowledge-grounded procedures used by users, agents, and the IT assistant.</p></div></section><section class="article-grid">@for(a of admin().articles;track a.id){<article><span>{{a.category}} / {{a.subcategory}}</span><h2>{{a.title}}</h2><p>{{a.content}}</p></article>}</section> }
-
-@if(view()==='admin') {
-<section class="page-title"><div><span class="eyebrow dark">ADMIN CONSOLE</span><h1>Service configuration</h1><p>Manage people, queues, routing, knowledge, and AI diagnostics.</p></div><div class="bot-health" [class.enabled]="admin().botStatus?.enabled">OpenAI {{admin().botStatus?.enabled?'enabled':'local fallback'}} · {{admin().botStatus?.model}}</div></section>
-<div class="admin-grid"><section class="panel admin-wide"><h2>Users, agents & assignment membership</h2><div class="user-create"><input [(ngModel)]="userEditor.userName" placeholder="Username"><input [(ngModel)]="userEditor.displayName" placeholder="Display name"><input [(ngModel)]="userEditor.email" type="email" placeholder="Email address"><select [(ngModel)]="userEditor.role"><option>User</option><option>ITSupport</option><option>Admin</option></select><input [(ngModel)]="userEditor.password" type="password" placeholder="Initial password (8+ chars)"><button (click)="saveUser()">Add user</button></div><div class="agent-table">@for(u of admin().users;track u.userName){<article><div><b>{{u.displayName}}</b><small>{{u.userName}}</small><input class="user-email" [(ngModel)]="u.email" type="email" placeholder="Email address"><div class="user-role"><select [(ngModel)]="u.role"><option>User</option><option>ITSupport</option><option>Admin</option></select><label><input type="checkbox" [(ngModel)]="u.isActive"> Active</label><button (click)="saveUser(u)">Save</button></div></div>@if(u.role==='ITSupport'){<div class="membership">@for(g of admin().groups;track g.id){<label><input type="checkbox" [checked]="hasMembership(u.userName,g.id)" (change)="saveMembership(u.userName,g.id,$any($event.target).checked)">{{g.name}}</label>}</div>}</article>}</div></section>
-<section class="panel"><h2>Catalog & support teams</h2><div class="inline-form"><select [(ngModel)]="newItem.kind"><option value="groups">Assignment group</option><option value="categories">Category</option><option value="subcategories">Subcategory</option><option value="services">Service</option><option value="priorities">Priority</option><option value="statuses">Status</option></select>@if(newItem.kind==='subcategories'){<select [(ngModel)]="newItem.categoryId"><option [ngValue]="null">Parent category</option>@for(c of admin().categories;track c.id){<option [ngValue]="c.id">{{c.name}}</option>}</select>}<input [(ngModel)]="newItem.name" placeholder="Item name"><button (click)="addItem()">Add</button></div><h3>Assignment groups</h3>@for(x of admin().groups;track x.id){<div class="config-row"><span>{{x.name}}</span><button (click)="remove('groups',x.id)">×</button></div>}<h3>Categories & subcategories</h3>@for(x of admin().categories;track x.id){<div class="config-row"><span><b>{{x.name}}</b><small>@for(s of x.subcategories;track s.id){ {{s.name}} · }</small></span></div>}<h3>Priorities & statuses</h3><div class="chips">@for(x of admin().priorities;track x.id){<span>{{x.name}}</span>}@for(x of admin().statuses;track x.id){<span>{{x.name}}</span>}</div></section>
-<section class="panel"><h2>Ordered routing rules</h2><p class="admin-hint">Keywords also match normalized URLs and host/domain text, case-insensitively.</p><div class="admin-form"><input [(ngModel)]="rule.name" placeholder="Rule name"><div class="two"><input type="number" [(ngModel)]="rule.order" placeholder="Order"><select [(ngModel)]="rule.assignmentGroupId"><option [ngValue]="null">Route to…</option>@for(x of admin().groups;track x.id){<option [ngValue]="x.id">{{x.name}}</option>}</select></div><input [(ngModel)]="rule.category" placeholder="Category (blank = any)"><input [(ngModel)]="rule.subcategory" placeholder="Subcategory (blank = any)"><input [(ngModel)]="rule.service" placeholder="Service (blank = any)"><input [(ngModel)]="rule.keywords" placeholder="Keywords or domains, comma separated"><button (click)="addRule()">Add routing rule</button></div>@for(x of admin().rules;track x.id){<div class="rule"><div><b>{{x.order}} · {{x.name}}</b><small>{{x.category||'Any'}} / {{x.subcategory||'Any'}} / {{x.service||'Any service'}} → {{groupName(x.assignmentGroupId)}}</small><small>Match: {{x.keywords||'classification fields only'}}</small></div><button (click)="remove('rules',x.id)">×</button></div>}</section>
-<section class="panel admin-wide"><div class="panel-head"><div><h2>Automatic priority rules</h2><p>Rules are evaluated by ascending order; the first complete match wins.</p></div></div><div class="priority-rule-create"><input [(ngModel)]="priorityRule.name" placeholder="Rule name"><input [(ngModel)]="priorityRule.keywords" placeholder="Keywords or domains, comma separated"><input [(ngModel)]="priorityRule.category" placeholder="Category (optional)"><input [(ngModel)]="priorityRule.service" placeholder="Service (optional)"><select [(ngModel)]="priorityRule.priority">@for(p of admin().priorities;track p.id){<option>{{p.name}}</option>}</select><input type="number" [(ngModel)]="priorityRule.order" placeholder="Order"><input class="rule-description" [(ngModel)]="priorityRule.description" placeholder="Description (optional)"><button (click)="addPriorityRule()">Add priority rule</button></div><div class="priority-rule-table"><div class="priority-rule heading"><span>Rule</span><span>Match</span><span>Priority</span><span>Order</span><span>Status</span><span></span></div>@for(r of admin().priorityRules;track r.id){<div class="priority-rule"><span><input [(ngModel)]="r.name"><small>{{r.description||'No description'}}</small></span><span><input [(ngModel)]="r.keywords" placeholder="Fallback when blank"><small>{{r.category||'Any category'}} · {{r.service||'Any service'}}</small></span><select [(ngModel)]="r.priority">@for(p of admin().priorities;track p.id){<option>{{p.name}}</option>}</select><input type="number" [(ngModel)]="r.order"><label><input type="checkbox" [(ngModel)]="r.isActive"> {{r.isActive?'Active':'Disabled'}}</label><span class="rule-actions"><button (click)="savePriorityRule(r)">Save</button><button class="danger-link" (click)="remove('priority-rules',r.id)">Delete</button></span></div>}</div></section>
-<section class="panel admin-wide"><h2>Knowledge base</h2><div class="article-form"><input [(ngModel)]="article.title" placeholder="Article title"><input [(ngModel)]="article.category" placeholder="Category"><input [(ngModel)]="article.subcategory" placeholder="Subcategory"><input [(ngModel)]="article.keywords" placeholder="Search keywords"><textarea [(ngModel)]="article.content" placeholder="Approved troubleshooting and collection steps"></textarea><button (click)="addArticle()">Publish article</button></div>@for(x of admin().articles;track x.id){<div class="config-row"><span><b>{{x.title}}</b><small>{{x.category}} / {{x.subcategory}}</small></span><button (click)="remove('articles',x.id)">×</button></div>}</section>
-<section class="panel admin-wide danger-zone"><h2>Administrative data deletion</h2><p>Permanently remove operational demo data. Each deletion is backend-authorized and leaves an audit tombstone.</p><div class="deletion-grid"><div><h3>Tickets & incidents</h3>@for(x of admin().deletionInventory.tickets;track x.id){<div class="delete-row"><span><b>{{x.number}}</b><small>{{x.title}} · {{x.status}}</small></span><button (click)="deleteOperationalData('tickets',x)">Delete</button></div>}@empty{<small>No tickets.</small>}</div><div><h3>AI chatbot sessions</h3>@for(x of admin().deletionInventory.chatSessions;track x.id){<div class="delete-row"><span><b>{{x.publicId}}</b><small>{{x.userName}} · {{x.messageCount}} messages</small></span><button (click)="deleteOperationalData('chat-sessions',x)">Delete</button></div>}@empty{<small>No chatbot sessions.</small>}</div><div><h3>Live Support transcripts</h3>@for(x of admin().deletionInventory.liveSessions;track x.id){<div class="delete-row"><span><b>{{x.subject}}</b><small>{{x.requestedBy}} · {{x.messageCount}} messages · {{x.status}}</small></span><button (click)="deleteOperationalData('live-sessions',x)">Delete</button></div>}@empty{<small>No live sessions.</small>}</div></div></section></div>
-}
-</div></main><it-chat-widget></it-chat-widget></div>
-}
-<ng-template #ticketTable><div class="table"><div class="tr th"><span>Ticket</span><span>Classification</span><span>Priority</span><span>Status</span><span>Assignment</span></div>@for(t of tickets().slice(0,view()==='overview'?6:100);track t.id){<button class="tr" (click)="openTicket(t.id)"><span><b>{{t.number}}</b><small>{{t.title}}</small></span><span><b>{{t.category}}</b><small>{{t.subcategory}}</small></span><span class="priority" [attr.data-p]="t.priority">{{t.priority}}</span><span><i class="status" [attr.data-status]="t.status">{{t.status}}</i></span><span><b>{{groupName(t.assignmentGroupId)}}</b><small>{{t.assignedAgent||'Unassigned'}} · {{t.updatedAt|date:'MMM d, h:mm a'}}</small></span></button>}@empty{<div class="empty">No authorized tickets in this queue.</div>}</div></ng-template>
+<ng-template #ticketTable
+  ><div class="table">
+    <div class="tr th">
+      <span>Ticket</span><span>Classification</span><span>Priority</span><span>Status</span
+      ><span>Assignment</span>
+    </div>
+    @for (t of tickets().slice(0, view() === 'overview' ? 6 : 100); track t.id) {
+      <button class="tr" (click)="openTicket(t.id)">
+        <span
+          ><b>{{ t.number }}</b
+          ><small>{{ t.title }}</small></span
+        ><span
+          ><b>{{ t.category }}</b
+          ><small>{{ t.subcategory }}</small></span
+        ><span class="priority" [attr.data-p]="t.priority">{{ t.priority }}</span
+        ><span
+          ><i class="status" [attr.data-status]="t.status">{{ t.status }}</i></span
+        ><span
+          ><b>{{ groupName(t.assignmentGroupId) }}</b
+          ><small
+            >{{ t.assignedAgent || 'Unassigned' }} ·
+            {{ t.updatedAt | date: 'MMM d, h:mm a' }}</small
+          ></span
+        >
+      </button>
+    } @empty {
+      <div class="empty">No authorized tickets in this queue.</div>
+    }
+  </div></ng-template
+>
