@@ -1,16 +1,17 @@
-<button class="launcher" (click)="open.set(!open())" aria-label="Open support chat">{{ open() ? '×' : '✦' }}</button>
+<button class="support-launcher" (click)="open.set(!open())" [attr.aria-expanded]="open()" aria-label="Open IT support assistant"><span>✦</span>{{open() ? 'Close' : 'IT Support'}}</button>
 @if (open()) {
-  <section class="chat" aria-live="polite">
-    <header><span class="bot-dot"></span><div><strong>{{ title }}</strong><small>Online · KB + smart routing</small></div></header>
-    <div class="messages">
-      @for (m of messages(); track $index) {
-        <div class="message" [class.user]="m.role === 'user'">{{ m.content }}
-          @if (m.awaitingConfirmation) { <button class="escalate" (click)="send('confirm-ticket')">Confirm ticket creation</button> }
-          @if (m.canEscalate) { <button class="escalate secondary" (click)="send('request-live')">Request a live agent</button> }
-        </div>
-      }
-      @if (busy()) { <div class="message typing">Thinking…</div> }
-    </div>
-    <form (ngSubmit)="send()"><input [(ngModel)]="draft" name="message" placeholder="Describe your issue…" maxlength="4000"><button type="submit">Send</button></form>
-  </section>
+<section class="support-chat" aria-live="polite">
+  <header class="support-header"><div class="bot-avatar">OI</div><div><strong>{{title}}</strong><small>@if(liveSessionId()){<span class="presence waiting"></span>{{liveStatus()==='Active'?'Connected to '+(liveAgent()||'support'):liveStatus()==='Reconnecting'?'Reconnecting…':'Waiting for an agent…'}}}@else{<span class="presence"></span>Available · Approved knowledge}</small></div><button (click)="open.set(false)" aria-label="Close">×</button></header>
+  <div class="support-messages">
+    @for (m of messages(); track $index) {
+      <article class="chat-row" [attr.data-role]="m.role"><div class="message-avatar">{{m.role==='user'?'You':m.role==='agent'?'IT':'AI'}}</div><div><span class="sender">{{m.role==='user'?'You':m.role==='agent'?(m.sender||'Support agent'):m.role==='system'?'System':'Oritso Assistant'}}</span><div class="message-bubble">{{m.content}}@if(m.ticketNumber){<div class="ticket-success">✓ {{m.ticketNumber}} created</div>}</div><time>{{m.createdAt|date:'shortTime'}}</time>
+      @if(m.canEscalate || m.canCreateTicket){<div class="action-cards">@if(m.canEscalate){<button (click)="send('request-live')"><b>Talk to Live Agent</b><small>Start a real-time conversation</small></button>}@if(m.canCreateTicket){<button (click)="send('create-ticket')"><b>Create Support Ticket</b><small>Review a prefilled form</small></button>}</div>}
+      </div></article>
+    }
+    @if(busy()){<article class="chat-row" data-role="assistant"><div class="message-avatar">AI</div><div class="typing"><i></i><i></i><i></i><span>Working on your request</span></div></article>}
+    @if(ticketForm(); as form){<form class="inline-ticket" (ngSubmit)="submitTicket()"><div class="form-title"><div><b>Review support ticket</b><small>Priority is calculated automatically</small></div><button type="button" (click)="ticketForm.set(null)">×</button></div><label>Issue type<select [(ngModel)]="form.type" name="bot-type"><option>Incident</option><option>Major Incident</option><option>Service Request</option></select></label><label>Short description<input [(ngModel)]="form.title" name="bot-title" maxlength="140" required></label><label>Description<textarea [(ngModel)]="form.description" name="bot-description" maxlength="4000" rows="4" required></textarea></label><div class="form-two"><label>Category<select [(ngModel)]="form.category" name="bot-category" (ngModelChange)="form.subcategory=subcategories()[0]?.name||''">@for(c of catalog().categories;track c.id){<option>{{c.name}}</option>}</select></label><label>Service<select [(ngModel)]="form.service" name="bot-service">@for(s of catalog().services;track s.id){<option>{{s.name}}</option>}</select></label></div><label class="file-field">Attachment (optional)<input type="file" (change)="selectAttachment($event)" accept="image/png,image/jpeg,application/pdf,text/plain,application/zip"></label><div class="calculated"><span>Priority</span><b>Calculated securely on submit</b></div><button class="submit-ticket" [disabled]="busy()">Create & auto-route ticket</button></form>}
+  </div>
+  <form class="composer" (ngSubmit)="send()"><input [(ngModel)]="draft" name="message" [placeholder]="liveSessionId()?'Message your support agent…':'Ask an IT support question…'" maxlength="4000" autocomplete="off"><button type="submit" [disabled]="busy()||!draft.trim()" aria-label="Send message">➤</button></form>
+  @if(liveSessionId()){<footer class="live-footer"><span>{{liveStatus()==='Active'?'Live agent conversation':'Connecting to support…'}}</span><button (click)="endLive()">End live chat</button></footer>}
+</section>
 }

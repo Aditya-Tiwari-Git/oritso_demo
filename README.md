@@ -6,10 +6,11 @@ Oritso IT Support CRM is a demo-ready IT Service Management application for bank
 
 - Bank users create incidents, see only their tickets, add comments/evidence, use approved CTS guidance, and request live support.
 - Agents see only tickets in their assignment groups or assigned directly to them. They can accept, reassign, prioritize, investigate with internal notes, escalate, resolve, and participate in realtime chat.
-- Admins manage agent-to-group memberships, support teams, categories/subcategories, services, routing rules, and knowledge articles.
+- Admins manage user emails, agent-to-group memberships, support teams, categories/subcategories, services, routing rules, automatic priority rules, and knowledge articles.
 - Admins can permanently delete tickets, chatbot conversations, and live-support transcripts from the Admin danger zone. Related records are cascaded, unreferenced attachment files are removed, and a deletion tombstone is retained in the audit log.
-- Ordered routing sends Scanner Jam and Connectivity incidents to **CTS Hardware Support**, Catch & Dispatch incidents to **CBS Support**, and unmatched work to **Service Desk**.
-- The bot searches approved knowledge first, maintains structured intake state, gathers missing details, presents a confirmation, and only then creates an `INC000001`-style incident through controlled backend services.
+- Ordered routing matches classification plus normalized free-text keywords, URLs, and domains. Scanner work goes to **CTS Hardware Support**, configured CBS hosts such as `cbs.com` go to **CBS Support**, and unmatched work goes to **Service Desk**.
+- Priority is server-calculated from ordered Admin rules: CBS defaults to **High**, scanner issues to **Medium**, and unmatched work to **Low**. User-supplied priority values are ignored.
+- The bot searches approved knowledge first. If troubleshooting is unresolved, it offers either an in-widget prefilled ticket form or a live-agent transfer; it supports multiple issue cycles in one session.
 - Live support uses authenticated SignalR WebSockets, persists the transcript, and can link or convert a conversation into a routed ticket.
 
 ## Demo personas
@@ -88,7 +89,7 @@ Stop the API and run:
 powershell -ExecutionPolicy Bypass -File tools/reset-demo.ps1
 ```
 
-The next API start recreates SQLite with CTS teams, memberships, classifications, routing rules, statuses, and three complete knowledge articles. The pre-upgrade database was preserved under `backend/ItSupport.Api/data/backup-pre-cts-upgrade`.
+The next API start recreates SQLite with CTS teams, memberships, classifications, routing rules, automatic priority rules, statuses, and three complete knowledge articles. Existing databases receive the additive priority-rule table and missing enhancement seed data at startup without being recreated. The pre-upgrade database was preserved under `backend/ItSupport.Api/data/backup-pre-cts-upgrade`.
 
 ## Verification
 
@@ -100,7 +101,7 @@ cd frontend
 node signalr-smoke.mjs
 ```
 
-The API suite covers public/protected endpoints, all persona logins, queue authorization, sequential numbering, routing, assignment, comments/work notes, history, resolution, bot confirmation flows, CBS/scanner knowledge, live queue acceptance, transcript persistence, conversion to a ticket, admin membership changes, Admin-only operational deletion, database cascades, physical attachment cleanup, and deletion audit tombstones. The SignalR test establishes two authenticated WebSocket clients and verifies immediate agent-to-user delivery.
+The API suite covers public/protected endpoints, all persona logins, queue authorization, sequential numbering, URL/domain routing, deterministic priority precedence, user priority-tampering resistance, email/contact data, assignment, comments/work notes, history, resolution, general and multi-issue bot flows, prefilled bot ticket creation, CBS/scanner knowledge, contextual live transfer, transcript persistence, conversion to a ticket, admin membership changes, Admin-only operational deletion, database cascades, physical attachment cleanup, and deletion audit tombstones. The SignalR test establishes two authenticated WebSocket clients and verifies both message directions, agent identity, and persisted ordering.
 
 ## Docker/server deployment
 

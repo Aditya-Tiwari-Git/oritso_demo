@@ -18,6 +18,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PriorityOption> Priorities => Set<PriorityOption>();
     public DbSet<StatusOption> Statuses => Set<StatusOption>();
     public DbSet<RoutingRule> RoutingRules => Set<RoutingRule>();
+    public DbSet<PriorityRule> PriorityRules => Set<PriorityRule>();
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();

@@ -49,6 +49,18 @@ public class RoutingRule : Entity
     public bool IsActive { get; set; } = true;
 }
 
+public class PriorityRule : Entity
+{
+    [Required, MaxLength(100)] public string Name { get; set; } = "";
+    [MaxLength(300)] public string Description { get; set; } = "";
+    [MaxLength(240)] public string? Keywords { get; set; }
+    [MaxLength(80)] public string? Category { get; set; }
+    [MaxLength(80)] public string? Service { get; set; }
+    [Required, MaxLength(40)] public string Priority { get; set; } = "Low";
+    public int Order { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
 public class Ticket : Entity
 {
     [Required, MaxLength(24)] public string Number { get; set; } = "";

@@ -2,8 +2,8 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
-export interface Session { token: string; userName: string; displayName: string; role: string; expiresAt: string; }
-export interface Ticket { id: number; number: string; type: string; title: string; description: string; category: string; subcategory: string; service: string; priority: string; impact: string; urgency: string; status: string; assignmentGroupId?: number; assignedAgent?: string; createdBy: string; resolutionCode?: string; resolutionNotes?: string; isEscalated: boolean; parentMajorIncidentId?: number; createdAt: string; updatedAt: string; comments?: any[]; workNotes?: any[]; history?: any[]; attachments?: any[]; }
+export interface Session { token: string; userName: string; displayName: string; email: string; role: string; expiresAt: string; }
+export interface Ticket { id: number; number: string; type: string; title: string; description: string; category: string; subcategory: string; service: string; priority: string; impact: string; urgency: string; status: string; assignmentGroupId?: number; assignedAgent?: string; createdBy: string; createdByDisplayName?: string; createdByEmail?: string; resolutionCode?: string; resolutionNotes?: string; isEscalated: boolean; parentMajorIncidentId?: number; createdAt: string; updatedAt: string; comments?: any[]; workNotes?: any[]; history?: any[]; attachments?: any[]; }
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {

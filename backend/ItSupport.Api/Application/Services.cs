@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
+using System.Net.Mail;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ItSupport.Api.Domain;
 using ItSupport.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +10,7 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace ItSupport.Api.Application;
 
-public record AppUser(string UserName, string Password, string DisplayName, string Role, bool IsActive = true);
+public record AppUser(string UserName, string Password, string DisplayName, string Role, string Email = "", bool IsActive = true);
 
 public class CredentialStore(IWebHostEnvironment env)
 {
@@ -19,11 +21,12 @@ public class CredentialStore(IWebHostEnvironment env)
     public AppUser Upsert(UserAdminRequest request)
     {
         if (request.Role is not ("Admin" or "ITSupport" or "User")) throw new ArgumentException("Role must be Admin, ITSupport, or User.");
+        try { _ = new MailAddress(request.Email); } catch { throw new ArgumentException("Enter a valid email address."); }
         lock (_gate)
         {
             var users = Load().ToList(); var existing = users.FindIndex(x => x.UserName.Equals(request.UserName, StringComparison.OrdinalIgnoreCase));
-            if (existing >= 0 && string.IsNullOrWhiteSpace(request.Password)) { var current = users[existing]; users[existing] = current with { DisplayName = request.DisplayName, Role = request.Role, IsActive = request.IsActive }; }
-            else { if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8) throw new ArgumentException("A new user's password must be at least 8 characters."); var user = new AppUser(request.UserName.Trim(), request.Password, request.DisplayName.Trim(), request.Role, request.IsActive); if (existing >= 0) users[existing] = user; else users.Add(user); }
+            if (existing >= 0 && string.IsNullOrWhiteSpace(request.Password)) { var current = users[existing]; users[existing] = current with { DisplayName = request.DisplayName.Trim(), Email = request.Email.Trim(), Role = request.Role, IsActive = request.IsActive }; }
+            else { if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8) throw new ArgumentException("A new user's password must be at least 8 characters."); var user = new AppUser(request.UserName.Trim(), request.Password, request.DisplayName.Trim(), request.Role, request.Email.Trim(), request.IsActive); if (existing >= 0) users[existing] = user; else users.Add(user); }
             var temp = _path + ".tmp"; File.WriteAllText(temp, JsonSerializer.Serialize(users, new JsonSerializerOptions { WriteIndented = true })); File.Move(temp, _path, true); return users.Single(x => x.UserName.Equals(request.UserName, StringComparison.OrdinalIgnoreCase));
         }
     }
@@ -47,6 +50,23 @@ public class TokenService(IConfiguration config)
 }
 
 public record RoutingResult(int? AssignmentGroupId, string GroupName, string RuleName);
+public static partial class RuleMatcher
+{
+    [GeneratedRegex(@"https?://|www\.", RegexOptions.IgnoreCase)] private static partial Regex ProtocolPattern();
+    [GeneratedRegex(@"[^a-z0-9.\-]+", RegexOptions.IgnoreCase)] private static partial Regex SeparatorPattern();
+    public static string Normalize(string value)
+    {
+        string decoded; try { decoded = Uri.UnescapeDataString(value ?? ""); } catch (UriFormatException) { decoded = value ?? ""; }
+        return SeparatorPattern().Replace(ProtocolPattern().Replace(decoded.ToLowerInvariant(), ""), " ").Trim();
+    }
+    public static bool ContainsAny(string actual, string? patterns)
+    {
+        var terms = (patterns ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(Normalize).Where(x => x.Length > 0).ToArray();
+        if (terms.Length == 0) return true;
+        var normalized = Normalize(actual); return terms.Any(normalized.Contains);
+    }
+}
+
 public class RoutingService(AppDbContext db)
 {
     public async Task<RoutingResult> RouteAsync(string category, string subcategory, string service, string priority, string type, string text)
@@ -55,8 +75,7 @@ public class RoutingService(AppDbContext db)
         foreach (var rule in rules)
         {
             bool Match(string? value, string actual) => string.IsNullOrWhiteSpace(value) || string.Equals(value, actual, StringComparison.OrdinalIgnoreCase);
-            var keywords = (rule.Keywords ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (Match(rule.Category, category) && Match(rule.Subcategory, subcategory) && Match(rule.Service, service) && Match(rule.Priority, priority) && Match(rule.TicketType, type) && (keywords.Length == 0 || keywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase))))
+            if (Match(rule.Category, category) && Match(rule.Subcategory, subcategory) && Match(rule.Service, service) && Match(rule.Priority, priority) && Match(rule.TicketType, type) && RuleMatcher.ContainsAny(text, rule.Keywords))
             {
                 var group = await db.AssignmentGroups.FindAsync(rule.AssignmentGroupId);
                 return new(rule.AssignmentGroupId, group?.Name ?? "Unknown group", rule.Name);
@@ -64,6 +83,21 @@ public class RoutingService(AppDbContext db)
         }
         var fallback = await db.AssignmentGroups.FirstOrDefaultAsync(x => x.Name == "Service Desk") ?? await db.AssignmentGroups.FirstOrDefaultAsync(x => x.IsActive);
         return new(fallback?.Id, fallback?.Name ?? "Unassigned", "Default Service Desk fallback");
+    }
+}
+
+public record PriorityResult(string Priority, string RuleName);
+public class PriorityService(AppDbContext db)
+{
+    public async Task<PriorityResult> CalculateAsync(string category, string service, string text)
+    {
+        var rules = await db.PriorityRules.Where(x => x.IsActive).OrderBy(x => x.Order).ThenBy(x => x.Id).ToListAsync();
+        foreach (var rule in rules)
+        {
+            bool Match(string? expected, string actual) => string.IsNullOrWhiteSpace(expected) || string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase);
+            if (Match(rule.Category, category) && Match(rule.Service, service) && RuleMatcher.ContainsAny(text, rule.Keywords)) return new(rule.Priority, rule.Name);
+        }
+        return new("Low", "Built-in safe fallback");
     }
 }
 
@@ -77,21 +111,28 @@ public class TicketAccessService(AppDbContext db)
     }
 }
 
-public class TicketService(AppDbContext db, RoutingService routing)
+public class TicketService(AppDbContext db, RoutingService routing, PriorityService priorities)
 {
     public async Task<(Ticket Ticket, RoutingResult Routing)> CreateAsync(CreateTicketRequest request, string user, string source = "Portal")
     {
-        var route = await routing.RouteAsync(request.Category, request.Subcategory, request.Service, request.Priority, request.Type, request.Title + " " + request.Description);
-        var ticket = new Ticket { Number = "PENDING-" + Guid.NewGuid().ToString("N"), Type = request.Type, Title = request.Title.Trim(), Description = request.Description.Trim(), Category = request.Category, Subcategory = request.Subcategory, Service = request.Service, Priority = request.Priority, Impact = request.Impact, Urgency = request.Urgency, CreatedBy = user, AssignmentGroupId = route.AssignmentGroupId };
+        if (request.Type is not ("Incident" or "Major Incident" or "Service Request")) throw new ArgumentException("Select a valid issue type.");
+        if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 140 || string.IsNullOrWhiteSpace(request.Description) || request.Description.Length > 4000) throw new ArgumentException("Title and description are required and must fit the allowed lengths.");
+        var category = await db.Categories.Include(x => x.Subcategories).FirstOrDefaultAsync(x => x.IsActive && x.Name == request.Category);
+        if (category is null || !category.Subcategories.Any(x => x.IsActive && x.Name == request.Subcategory)) throw new ArgumentException("Select a configured category and subcategory.");
+        if (!await db.Services.AnyAsync(x => x.IsActive && x.Name == request.Service)) throw new ArgumentException("Select a configured affected service.");
+        var priority = await priorities.CalculateAsync(request.Category, request.Service, request.Title + " " + request.Description);
+        var route = await routing.RouteAsync(request.Category, request.Subcategory, request.Service, priority.Priority, request.Type, request.Title + " " + request.Description);
+        var ticket = new Ticket { Number = "PENDING-" + Guid.NewGuid().ToString("N"), Type = request.Type, Title = request.Title.Trim(), Description = request.Description.Trim(), Category = request.Category, Subcategory = request.Subcategory, Service = request.Service, Priority = priority.Priority, Impact = request.Impact, Urgency = request.Urgency, CreatedBy = user, AssignmentGroupId = route.AssignmentGroupId };
         ticket.History.Add(new() { Actor = user, Action = "Created", Detail = $"Ticket created via {source}." });
         ticket.History.Add(new() { Actor = "Routing Engine", Action = "Automatically Routed", Detail = $"Routed to {route.GroupName} based on rule: {route.RuleName}." });
+        ticket.History.Add(new() { Actor = "Priority Engine", Action = "Priority Calculated", Detail = $"Calculated {priority.Priority} based on rule: {priority.RuleName}." });
         db.Tickets.Add(ticket); await db.SaveChangesAsync();
         ticket.Number = $"INC{ticket.Id:000000}"; await db.SaveChangesAsync();
         return (ticket, route);
     }
 }
 
-public record BotState(string Stage = "Identify", string Category = "", string Subcategory = "", string Service = "", string Title = "", string Details = "", string Impact = "", string Urgency = "", string Error = "", string Started = "", string Troubleshooting = "", string PendingField = "");
+public record BotState(string Stage = "Identify", string Category = "", string Subcategory = "", string Service = "", string Title = "", string Details = "", string Impact = "Single User", string Urgency = "Medium", string Error = "", string Started = "", string Troubleshooting = "", string PendingField = "");
 
 public class ChatService(AppDbContext db, TicketService tickets, IConfiguration config, IHttpClientFactory clients, ILogger<ChatService> logger, IHubContext<LiveSupportHub> liveHub)
 {
@@ -103,85 +144,91 @@ public class ChatService(AppDbContext db, TicketService tickets, IConfiguration 
         session ??= new ChatSession { UserName = user }; if (session.Id == 0) db.ChatSessions.Add(session);
         var state = JsonSerializer.Deserialize<BotState>(session.StateJson, JsonOptions) ?? new();
         session.Messages.Add(new() { Role = "user", Content = request.Message });
-        var input = request.Message.Trim(); var lower = input.ToLowerInvariant();
-        string response; List<KnowledgeArticle> matches = [];
-        Ticket? created = null; RoutingResult? route = null;
+        var input = request.Message.Trim(); var lower = input.ToLowerInvariant(); var matches = new List<KnowledgeArticle>();
 
         if (request.Action == "request-live" || lower.Contains("live agent") || lower.Contains("talk to") && lower.Contains("agent"))
         {
             var live = new LiveSupportSession { RequestedBy = user, Subject = state.Title.Length > 0 ? state.Title : "Chatbot escalation", TicketId = session.TicketId };
-            live.Messages.Add(new() { Sender = "System", Body = "Live support requested from the IT assistant." }); db.LiveSupportSessions.Add(live); await db.SaveChangesAsync(); await liveHub.Clients.All.SendAsync("QueueChanged");
-            response = $"You’re in the live support queue. Your request reference is {live.PublicId.ToString()[..8].ToUpperInvariant()}. An available agent can now accept the conversation.";
-            return await Finish(session, state with { Stage = "LiveSupport" }, response, matches, null, null, false);
+            live.Messages.Add(new() { Sender = "System", Body = "Conversation transferred from the Oritso IT assistant. Previous context follows." });
+            foreach (var message in session.Messages.OrderBy(x => x.CreatedAt).TakeLast(12)) live.Messages.Add(new() { Sender = message.Role == "user" ? user : "Oritso Assistant", Body = message.Content, CreatedAt = message.CreatedAt });
+            live.Messages.Add(new() { Sender = "System", Body = "Waiting for an available support agent." }); db.LiveSupportSessions.Add(live); await db.SaveChangesAsync(); await liveHub.Clients.All.SendAsync("QueueChanged");
+            return await Finish(session, state with { Stage = "LiveSupport" }, $"Connecting to support… You are waiting for an agent. Reference {live.PublicId.ToString()[..8].ToUpperInvariant()}.", matches, liveSessionId: live.PublicId, liveStatus: live.Status);
         }
 
-        if (lower.Contains("status") || (lower.Contains("my ticket") && state.Stage == "Identify"))
+        if (lower.Contains("status") || lower.Contains("my ticket"))
         {
             var mine = (await db.Tickets.Where(x => x.CreatedBy == user).ToListAsync()).OrderByDescending(x => x.UpdatedAt).FirstOrDefault();
-            response = mine is null ? "You do not have any tickets yet." : $"Your latest ticket {mine.Number} is {mine.Status}, assigned to {await GroupName(mine.AssignmentGroupId)}{(mine.AssignedAgent is null ? "" : $" and agent {mine.AssignedAgent}")}.";
-            return await Finish(session, state, response, matches, mine, null, false);
+            var message = mine is null ? "You do not have any tickets yet." : $"Your latest ticket {mine.Number} is {mine.Status}, assigned to {await GroupName(mine.AssignmentGroupId)}{(mine.AssignedAgent is null ? "" : $" and agent {mine.AssignedAgent}")}.";
+            return await Finish(session, state, message, matches, ticket: mine);
         }
 
+        if (state.Stage is "ResolvedWithoutTicket" or "Created" or "LiveSupport" or "LiveSupportEnded") state = new();
+        if (IsGreeting(lower) && state.Stage == "Identify") return await Finish(session, state, "Hello! I can help with scanner and CBS incidents, approved troubleshooting, ticket status, general IT questions, support tickets, or a live support agent. What can I help you with?", matches);
+        if (IsThanks(lower) && state.Stage == "Identify") return await Finish(session, state, "You’re welcome. Describe another IT issue whenever you’re ready and I’ll start a fresh support flow.", matches);
+        if (lower.Contains("what can you help") || lower is "help" or "i have another issue") return await Finish(session, new(), "I can troubleshoot configured IT services, search approved knowledge, check ticket status, prepare a reviewed support ticket, or connect you to a live agent. What is happening?", matches);
+        if (lower.Contains("what is cbs")) return await Finish(session, state, "CBS means Core Banking Solution—the platform used for core banking operations and connected services. If you have an access or URL error, share the address and error text and I’ll apply the configured CBS rules.", matches);
+        if (lower.Contains("reset") && lower.Contains("password")) return await Finish(session, state, "Use your organization’s approved self-service password reset process or contact the Service Desk. Never share a password or one-time code here. If the approved reset fails, you can review a prefilled ticket.", matches, canCreateTicket: true, draft: Draft(new() { Category = "General", Subcategory = "Software", Service = "Branch IT", Title = "Password reset assistance", Details = input }));
+
+        if (request.Action == "create-ticket" || lower.Contains("create a ticket") || lower.Contains("raise a ticket"))
+        {
+            if (state.Category.Length == 0) state = await IdentifyAsync(input, state);
+            if (state.Category.Length == 0) state = state with { Category = "General", Subcategory = "Software", Service = "Branch IT", Title = "General IT support request", Details = input };
+            state = state with { Stage = "TicketForm" };
+            return await Finish(session, state, "Review the prefilled details. Priority is calculated securely when you submit and cannot be overridden.", matches, canCreateTicket: true, draft: Draft(state));
+        }
+
+        string response;
         if (state.Stage == "Identify")
         {
-            state = Identify(input, state);
-            if (state.Category.Length == 0)
-            {
-                response = "Please describe the issue before I create or escalate anything. Include the affected application or device and what happens when you use it.";
-                return await Finish(session, state, response, matches, null, null, false);
-            }
+            state = await IdentifyAsync(input, state);
+            if (state.Category.Length == 0) return await Finish(session, state, "Is this an IT problem, a service request, or a question about a specific application or device? A little more detail will help me find the right guidance.", matches);
             matches = await SearchKnowledge(state.Category, state.Subcategory, input);
-            var guidance = matches.FirstOrDefault()?.Content ?? "I don’t have an approved knowledge article with enough detail for this issue, so additional investigation may be required.";
-            response = $"This looks like {state.Category} / {state.Subcategory}.\n\n{guidance}\n\nDid these steps resolve the issue?";
-            response = await EnhanceWithOpenAi(input, matches, response);
-            state = state with { Stage = "Troubleshooting", Troubleshooting = "Approved knowledge guidance provided" };
+            var guidance = matches.FirstOrDefault()?.Content ?? "I don’t have an approved knowledge article for this issue. Check whether the affected application can be restarted safely, record the exact error, and avoid repeated retries that could duplicate a transaction.";
+            response = await EnhanceWithOpenAi(input, matches, $"This looks like {state.Category} / {state.Subcategory}.\n\n{guidance}\n\nDid these steps resolve the issue?");
+            state = state with { Stage = "Troubleshooting", Troubleshooting = "Approved guidance provided" };
         }
         else if (state.Stage == "Troubleshooting")
         {
-            if (IsPositive(lower)) { response = "Great — I’ve recorded that the approved troubleshooting resolved the issue. No ticket is needed."; state = state with { Stage = "ResolvedWithoutTicket" }; }
-            else { state = state with { Stage = "Collecting", PendingField = "Error" }; response = state.Subcategory == "Catch & Dispatch" ? "I’ll collect the details needed for CBS support. What is the exact error message or behavior shown?" : "I can prepare a routed incident. What exact error message or device behavior do you see?"; }
+            if (IsPositive(lower)) { response = "Great—the current issue is marked resolved. No ticket was created. You can describe another unrelated problem whenever you’re ready."; state = state with { Stage = "ResolvedWithoutTicket" }; }
+            else { response = "The troubleshooting did not resolve this issue. Choose the next step: connect to a live support agent, or review a prefilled support-ticket form."; state = state with { Stage = "OfferActions", Error = input }; }
         }
-        else if (state.Stage == "Collecting")
-        {
-            (state, response) = Collect(state, input);
-        }
-        else if (state.Stage == "Confirm" && (IsPositive(lower) || request.Action == "confirm-ticket"))
-        {
-            var result = await tickets.CreateAsync(new("Incident", state.Title, BuildDescription(state), state.Category, state.Subcategory, Priority(state.Impact, state.Urgency), state.Service, state.Impact, state.Urgency), user, "Agentic IT Assistant");
-            created = result.Ticket; route = result.Routing; session.TicketId = created.Id; state = state with { Stage = "Created" };
-            response = $"I’ve created {created.Number} and routed it to {route.GroupName}. The ticket includes the error, impact, timing, and troubleshooting context you provided.";
-        }
-        else if (state.Stage == "Confirm") response = "I have not created a ticket. Say “yes, create it” when you are ready, or tell me what you want to change in the summary.";
-        else if (state.Stage == "Created") response = $"This conversation is linked to {await TicketNumber(session.TicketId)}. You can ask for its status, add more information from the ticket page, or request a live agent.";
-        else response = "Tell me about a scanner jam, scanner connectivity issue, or CBS catch-and-dispatch problem and I’ll use the approved support workflow.";
+        else if (state.Stage == "OfferActions") response = "Choose Talk to Live Agent for real-time help, or Create Support Ticket to review and edit the prefilled details.";
+        else if (state.Stage == "TicketForm") response = "Your ticket form is ready below. Review the details and submit when ready.";
+        else response = "Tell me about a scanner issue, CBS access problem, another configured IT service, or a general support question.";
 
-        return await Finish(session, state, response, matches, created, route, state.Stage is "Collecting" or "Confirm");
+        var offers = state.Stage == "OfferActions";
+        return await Finish(session, state, response, matches, offers, offers || state.Stage == "TicketForm", offers || state.Stage == "TicketForm" ? Draft(state) : null);
     }
 
-    private async Task<ChatReply> Finish(ChatSession session, BotState state, string response, List<KnowledgeArticle> articles, Ticket? ticket, RoutingResult? route, bool canEscalate)
+    public async Task<ChatReply?> CreateTicketAsync(BotTicketRequest request, string user)
+    {
+        var session = await db.ChatSessions.Include(x => x.Messages).FirstOrDefaultAsync(x => x.PublicId == request.SessionId && x.UserName == user); if (session is null) return null;
+        var state = JsonSerializer.Deserialize<BotState>(session.StateJson, JsonOptions) ?? new();
+        var context = string.Join("\n", session.Messages.OrderBy(x => x.CreatedAt).TakeLast(10).Select(x => $"{x.Role}: {x.Content}"));
+        var description = $"{request.Description.Trim()}\n\nConversation context:\n{context}"; if (description.Length > 4000) description = description[..4000];
+        var result = await tickets.CreateAsync(new(request.Type, request.Title, description, request.Category, request.Subcategory, null, request.Service, request.Impact, request.Urgency), user, "Agentic IT Assistant form");
+        session.TicketId = result.Ticket.Id; state = state with { Stage = "Created" };
+        return await Finish(session, state, $"Ticket {result.Ticket.Number} was created with {result.Ticket.Priority} priority and routed to {result.Routing.GroupName}. You can track it from My Tickets.", [], ticket: result.Ticket, route: result.Routing);
+    }
+
+    private async Task<ChatReply> Finish(ChatSession session, BotState state, string response, List<KnowledgeArticle> articles, bool canEscalate = false, bool canCreateTicket = false, object? draft = null, Guid? liveSessionId = null, string? liveStatus = null, Ticket? ticket = null, RoutingResult? route = null)
     {
         session.StateJson = JsonSerializer.Serialize(state, JsonOptions); session.UpdatedAt = DateTimeOffset.UtcNow; session.Messages.Add(new() { Role = "assistant", Content = response }); await db.SaveChangesAsync();
-        return new(session.PublicId, response, articles.Select(x => (object)new { x.Id, x.Title, x.Category, x.Subcategory }).ToArray(), ticket?.Id ?? session.TicketId, ticket?.Number, route?.GroupName, canEscalate, state.Stage == "Confirm", state.Stage);
+        return new(session.PublicId, response, articles.Select(x => (object)new { x.Id, x.Title, x.Category, x.Subcategory }).ToArray(), ticket?.Id ?? session.TicketId, ticket?.Number, route?.GroupName, ticket?.Priority, canEscalate, canCreateTicket, draft, liveSessionId, liveStatus, state.Stage);
     }
 
-    private static BotState Identify(string input, BotState state)
+    private static object Draft(BotState state) => new { type = "Incident", title = state.Title.Length > 0 ? state.Title : "IT support request", description = state.Details.Length > 0 ? state.Details : state.Error, category = state.Category.Length > 0 ? state.Category : "General", subcategory = state.Subcategory.Length > 0 ? state.Subcategory : "Software", service = state.Service.Length > 0 ? state.Service : "Branch IT", impact = state.Impact, urgency = state.Urgency };
+
+    private async Task<BotState> IdentifyAsync(string input, BotState state)
     {
         var lower = input.ToLowerInvariant();
-        if (lower.Contains("cbs") || lower.Contains("catch") || lower.Contains("dispatch")) return state with { Category = "CBS Integration", Subcategory = "Catch & Dispatch", Service = "CTS / CBS Integration", Title = "CBS catch and dispatch issue", Details = input };
+        if (lower.Contains("cbs") || lower.Contains("core banking") || lower.Contains("catch") || lower.Contains("dispatch")) return state with { Category = "CBS Integration", Subcategory = "Catch & Dispatch", Service = "CTS / CBS Integration", Title = "CBS access or integration issue", Details = input };
+        var domainRules = await db.RoutingRules.Where(x => x.IsActive && x.Keywords != null).OrderBy(x => x.Order).ToListAsync();
+        foreach (var rule in domainRules.Where(x => !string.IsNullOrWhiteSpace(x.Keywords) && RuleMatcher.ContainsAny(input, x.Keywords))) { var group = await db.AssignmentGroups.FindAsync(rule.AssignmentGroupId); if (group?.Name.Contains("CBS", StringComparison.OrdinalIgnoreCase) == true) return state with { Category = "CBS Integration", Subcategory = "Catch & Dispatch", Service = "CTS / CBS Integration", Title = "CBS URL or host access issue", Details = input }; }
         if (lower.Contains("jam")) return state with { Category = "CTS Hardware", Subcategory = "Scanner Jam", Service = "CTS Scanner", Title = "CTS scanner jam", Details = input };
-        if (lower.Contains("scanner") || lower.Contains("disconnect") || lower.Contains("device not detected") || lower.Contains("connectivity")) return state with { Category = "CTS Hardware", Subcategory = "Connectivity", Service = "CTS Scanner", Title = "CTS scanner connectivity issue", Details = input };
+        if (lower.Contains("scanner") || lower.Contains("scanning") || lower.Contains("disconnect") || lower.Contains("device not detected") || lower.Contains("connectivity")) return state with { Category = "CTS Hardware", Subcategory = "Connectivity", Service = "CTS Scanner", Title = "CTS scanner issue", Details = input };
+        if (lower.Contains("issue") || lower.Contains("error") || lower.Contains("not working") || lower.Contains("cannot access") || lower.Contains("can't access")) return state with { Category = "General", Subcategory = "Software", Service = "Branch IT", Title = "General software issue", Details = input };
         return state;
-    }
-
-    private static (BotState, string) Collect(BotState state, string input)
-    {
-        state = state.PendingField switch { "Error" => state with { Error = input, PendingField = "Impact" }, "Impact" => state with { Impact = input, PendingField = "Urgency" }, "Urgency" => state with { Urgency = input, PendingField = "Started" }, "Started" => state with { Started = input, PendingField = "Troubleshooting" }, "Troubleshooting" => state with { Troubleshooting = input, PendingField = "" }, _ => state with { PendingField = "Error" } };
-        if (state.PendingField == "Impact") return (state, "Is this affecting one user/device, multiple users, or the whole branch?");
-        if (state.PendingField == "Urgency") return (state, "How urgent is this: low, medium, high, or critical to clearing operations?");
-        if (state.PendingField == "Started") return (state, "When did the issue start?");
-        if (state.PendingField == "Troubleshooting") return (state, "What troubleshooting have you already attempted, and are logs or screenshots available?");
-        state = state with { Stage = "Confirm" };
-        return (state, $"I have enough information to raise this incident.\n\n• Issue: {state.Title}\n• Error: {state.Error}\n• Impact: {state.Impact}\n• Urgency: {state.Urgency}\n• Started: {state.Started}\n\nWould you like me to create and route the ticket?");
     }
 
     private async Task<List<KnowledgeArticle>> SearchKnowledge(string category, string subcategory, string input)
@@ -210,8 +257,7 @@ public class ChatService(AppDbContext db, TicketService tickets, IConfiguration 
     }
 
     private static bool IsPositive(string text) => new[] { "yes", "fixed", "resolved", "working now", "create it", "confirm" }.Any(text.Contains);
-    private static string Priority(string impact, string urgency) => impact.Contains("branch", StringComparison.OrdinalIgnoreCase) || impact.Contains("multiple", StringComparison.OrdinalIgnoreCase) || urgency.Contains("critical", StringComparison.OrdinalIgnoreCase) ? "High" : "Medium";
-    private static string BuildDescription(BotState s) => $"{s.Details}\n\nError/behavior: {s.Error}\nImpact: {s.Impact}\nUrgency: {s.Urgency}\nStarted: {s.Started}\nTroubleshooting/logs: {s.Troubleshooting}";
+    private static bool IsGreeting(string text) => new[] { "hello", "hi", "hey", "good morning", "good afternoon" }.Any(x => text == x || text.StartsWith(x + " "));
+    private static bool IsThanks(string text) => text.Contains("thank") || text is "thanks" or "cheers";
     private async Task<string> GroupName(int? id) => id is null ? "Unassigned" : (await db.AssignmentGroups.FindAsync(id))?.Name ?? "Unknown group";
-    private async Task<string> TicketNumber(int? id) => id is null ? "the ticket" : (await db.Tickets.FindAsync(id))?.Number ?? "the ticket";
 }
