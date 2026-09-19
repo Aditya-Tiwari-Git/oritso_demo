@@ -4,7 +4,7 @@
   <main class="login-shell">
     <section class="login-brand">
       <!-- <div class="mark">IT</div> -->
-      <span class="eyebrow" style="font-size: 18px;">ORITSO {{ portalTitle.toUpperCase() }}</span>
+      <span class="eyebrow" style="font-size: 18px">ORITSO {{ portalTitle.toUpperCase() }}</span>
       <h1>Banking support,<br /><em>without the wait.</em></h1>
       <p>One workspace for CTS incidents, clearing integrations, knowledge, and human support.</p>
       <!-- <div class="signal"><span></span> Demo services operational</div> -->
@@ -40,7 +40,9 @@
     <aside>
       <div class="logo">
         <span>IT</span>
-        <div>Oritso<small>{{ portalTitle }}</small></div>
+        <div>
+          Oritso<small>{{ portalTitle }}</small>
+        </div>
       </div>
       <nav>
         <button [class.active]="view() === 'overview'" (click)="navigate('overview')">
@@ -143,16 +145,18 @@
               ><strong>{{ metrics().total }}</strong
               ><small>Visible to your role</small>
             </article>
-            <article class="accent">
+            <article class="red_accent">
               <span>Major incidents</span><strong>{{ metrics().major }}</strong
               ><small>Organization-wide impact</small>
             </article>
             <article>
-              <span>{{ api.session()?.role === 'User' ? 'My open tickets' : 'Group Open Incidents' }}</span
+              <span>{{
+                api.session()?.role === 'User' ? 'My open tickets' : 'Group Open Incidents'
+              }}</span
               ><strong>{{ metrics().active }}</strong
               ><small>Requires attention</small>
             </article>
-            <article>
+            <article class="accent">
               <span>Resolved</span><strong>{{ metrics().resolved }}</strong
               ><small>Completed work</small>
             </article>
@@ -805,13 +809,33 @@
                 <div>
                   <h3>Tickets & incidents</h3>
                   <div class="bulk-toolbar">
-                    <label><input type="checkbox" [checked]="allOperationalSelected('tickets')" [indeterminate]="selectedCount('tickets') > 0 && !allOperationalSelected('tickets')" (change)="toggleAllOperational('tickets', $event)" /> Select All</label>
+                    <label
+                      ><input
+                        type="checkbox"
+                        [checked]="allOperationalSelected('tickets')"
+                        [indeterminate]="
+                          selectedCount('tickets') > 0 && !allOperationalSelected('tickets')
+                        "
+                        (change)="toggleAllOperational('tickets', $event)"
+                      />
+                      Select All</label
+                    >
                     <span class="selection-count">{{ selectedCount('tickets') }} selected</span>
-                    @if (selectedCount('tickets') > 0) {<button class="delete-selected" (click)="bulkDeleteOperational('tickets')">Delete Selected</button>}
+                    @if (selectedCount('tickets') > 0) {
+                      <button class="delete-selected" (click)="bulkDeleteOperational('tickets')">
+                        Delete Selected
+                      </button>
+                    }
                   </div>
                   @for (x of admin().deletionInventory.tickets; track x.id) {
                     <div class="delete-row">
-                      <input class="row-select" type="checkbox" [checked]="isOperationalSelected('tickets', x.id)" (change)="toggleOperationalSelection('tickets', x.id, $event)" [attr.aria-label]="'Select ticket ' + x.number" />
+                      <input
+                        class="row-select"
+                        type="checkbox"
+                        [checked]="isOperationalSelected('tickets', x.id)"
+                        (change)="toggleOperationalSelection('tickets', x.id, $event)"
+                        [attr.aria-label]="'Select ticket ' + x.number"
+                      />
                       <span
                         ><b>{{ x.number }}</b
                         ><small>{{ x.title }} · {{ x.status }}</small></span
@@ -824,13 +848,39 @@
                 <div>
                   <h3>AI chatbot sessions</h3>
                   <div class="bulk-toolbar">
-                    <label><input type="checkbox" [checked]="allOperationalSelected('chat-sessions')" [indeterminate]="selectedCount('chat-sessions') > 0 && !allOperationalSelected('chat-sessions')" (change)="toggleAllOperational('chat-sessions', $event)" /> Select All</label>
-                    <span class="selection-count">{{ selectedCount('chat-sessions') }} selected</span>
-                    @if (selectedCount('chat-sessions') > 0) {<button class="delete-selected" (click)="bulkDeleteOperational('chat-sessions')">Delete Selected</button>}
+                    <label
+                      ><input
+                        type="checkbox"
+                        [checked]="allOperationalSelected('chat-sessions')"
+                        [indeterminate]="
+                          selectedCount('chat-sessions') > 0 &&
+                          !allOperationalSelected('chat-sessions')
+                        "
+                        (change)="toggleAllOperational('chat-sessions', $event)"
+                      />
+                      Select All</label
+                    >
+                    <span class="selection-count"
+                      >{{ selectedCount('chat-sessions') }} selected</span
+                    >
+                    @if (selectedCount('chat-sessions') > 0) {
+                      <button
+                        class="delete-selected"
+                        (click)="bulkDeleteOperational('chat-sessions')"
+                      >
+                        Delete Selected
+                      </button>
+                    }
                   </div>
                   @for (x of admin().deletionInventory.chatSessions; track x.id) {
                     <div class="delete-row">
-                      <input class="row-select" type="checkbox" [checked]="isOperationalSelected('chat-sessions', x.id)" (change)="toggleOperationalSelection('chat-sessions', x.id, $event)" aria-label="Select chatbot session" />
+                      <input
+                        class="row-select"
+                        type="checkbox"
+                        [checked]="isOperationalSelected('chat-sessions', x.id)"
+                        (change)="toggleOperationalSelection('chat-sessions', x.id, $event)"
+                        aria-label="Select chatbot session"
+                      />
                       <span
                         ><b>{{ x.publicId }}</b
                         ><small>{{ x.userName }} · {{ x.messageCount }} messages</small></span
@@ -843,13 +893,39 @@
                 <div>
                   <h3>Live Support transcripts</h3>
                   <div class="bulk-toolbar">
-                    <label><input type="checkbox" [checked]="allOperationalSelected('live-sessions')" [indeterminate]="selectedCount('live-sessions') > 0 && !allOperationalSelected('live-sessions')" (change)="toggleAllOperational('live-sessions', $event)" /> Select All</label>
-                    <span class="selection-count">{{ selectedCount('live-sessions') }} selected</span>
-                    @if (selectedCount('live-sessions') > 0) {<button class="delete-selected" (click)="bulkDeleteOperational('live-sessions')">Delete Selected</button>}
+                    <label
+                      ><input
+                        type="checkbox"
+                        [checked]="allOperationalSelected('live-sessions')"
+                        [indeterminate]="
+                          selectedCount('live-sessions') > 0 &&
+                          !allOperationalSelected('live-sessions')
+                        "
+                        (change)="toggleAllOperational('live-sessions', $event)"
+                      />
+                      Select All</label
+                    >
+                    <span class="selection-count"
+                      >{{ selectedCount('live-sessions') }} selected</span
+                    >
+                    @if (selectedCount('live-sessions') > 0) {
+                      <button
+                        class="delete-selected"
+                        (click)="bulkDeleteOperational('live-sessions')"
+                      >
+                        Delete Selected
+                      </button>
+                    }
                   </div>
                   @for (x of admin().deletionInventory.liveSessions; track x.id) {
                     <div class="delete-row">
-                      <input class="row-select" type="checkbox" [checked]="isOperationalSelected('live-sessions', x.id)" (change)="toggleOperationalSelection('live-sessions', x.id, $event)" aria-label="Select live support session" />
+                      <input
+                        class="row-select"
+                        type="checkbox"
+                        [checked]="isOperationalSelected('live-sessions', x.id)"
+                        (change)="toggleOperationalSelection('live-sessions', x.id, $event)"
+                        aria-label="Select live support session"
+                      />
                       <span
                         ><b>{{ x.subject }}</b
                         ><small
