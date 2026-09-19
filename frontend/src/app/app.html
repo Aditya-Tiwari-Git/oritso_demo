@@ -1,4 +1,6 @@
-@if (!api.session()) {
+@if (standaloneChatbot) {
+  <app-chatbot-page></app-chatbot-page>
+} @else if (!api.session()) {
   <main class="login-shell">
     <section class="login-brand">
       <!-- <div class="mark">IT</div> -->
@@ -99,6 +101,9 @@
         <div class="top-actions">
           @if (api.session()?.role === 'User') {
             <button class="new-btn" (click)="navigate('create')">＋ New ticket</button>
+          }
+          @if (api.session()?.role === 'Admin') {
+            <button class="new-btn" (click)="openChatbot()">Open Chatbot ↗</button>
           }
           <button class="icon-btn" title="Sign out" (click)="logout()">Sign out</button>
         </div>

@@ -137,6 +137,15 @@ public record BotState(string Stage = "Identify", string Category = "", string S
 public class ChatService(AppDbContext db, TicketService tickets, IConfiguration config, IHttpClientFactory clients, ILogger<ChatService> logger, IHubContext<LiveSupportHub> liveHub)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private sealed record TroubleshootingScenario(string Title, string[] Applications, string[] Symptoms);
+    private static readonly TroubleshootingScenario[] GeneralScenarios =
+    [
+        new("Clear Outlook cache", ["outlook"], ["cache", "cached", "clear data", "temporary files"]),
+        new("Outlook Synchronization and Connectivity", ["outlook"], ["sync", "synchroniz", "not receiving", "not sending", "send receive", "offline", "connectivity", "connection"]),
+        new("Outlook not responding", ["outlook"], ["stuck", "frozen", "freeze", "not responding", "hang", "won't open", "will not open", "stuck on loading"]),
+        new("Microsoft Teams troubleshooting", ["teams", "microsoft teams", "ms teams"], ["cache", "stuck", "frozen", "freeze", "not responding", "hang", "loading", "won't open", "will not open", "connectivity", "connection"]),
+        new("Clear browser cache and cookies", ["browser", "chrome", "edge", "firefox", "safari", "website", "web page"], ["cache", "cookie", "strange", "strangely", "not loading", "loading issue", "slow", "outdated", "old version", "behaving"])
+    ];
 
     public async Task<ChatReply> ReplyAsync(ChatRequest request, string user)
     {
@@ -163,7 +172,7 @@ public class ChatService(AppDbContext db, TicketService tickets, IConfiguration 
         }
 
         if (state.Stage is "ResolvedWithoutTicket" or "Created" or "LiveSupport" or "LiveSupportEnded") state = new();
-        if (IsGreeting(lower) && state.Stage == "Identify") return await Finish(session, state, "Hello! I can help with scanner and CBS incidents, approved troubleshooting, ticket status, general IT questions, support tickets, or a live support agent. What can I help you with?", matches);
+        if (IsGreeting(lower) && state.Stage == "Identify") return await Finish(session, state, "Hello! I can help with browser, Outlook, Teams, scanner and CBS issues, approved troubleshooting, ticket status, support tickets, or a live support agent. What can I help you with?", matches);
         if (IsThanks(lower) && state.Stage == "Identify") return await Finish(session, state, "You’re welcome. Describe another IT issue whenever you’re ready and I’ll start a fresh support flow.", matches);
         if (lower.Contains("what can you help") || lower is "help" or "i have another issue") return await Finish(session, new(), "I can troubleshoot configured IT services, search approved knowledge, check ticket status, prepare a reviewed support ticket, or connect you to a live agent. What is happening?", matches);
         if (lower.Contains("what is cbs")) return await Finish(session, state, "CBS means Core Banking Solution—the platform used for core banking operations and connected services. If you have an access or URL error, share the address and error text and I’ll apply the configured CBS rules.", matches);
@@ -182,7 +191,7 @@ public class ChatService(AppDbContext db, TicketService tickets, IConfiguration 
         {
             state = await IdentifyAsync(input, state);
             if (state.Category.Length == 0) return await Finish(session, state, "Is this an IT problem, a service request, or a question about a specific application or device? A little more detail will help me find the right guidance.", matches);
-            matches = await SearchKnowledge(state.Category, state.Subcategory, input);
+            matches = await SearchKnowledge(state.Category, state.Subcategory, input, state.Title);
             var guidance = matches.FirstOrDefault()?.Content ?? "I don’t have an approved knowledge article for this issue. Check whether the affected application can be restarted safely, record the exact error, and avoid repeated retries that could duplicate a transaction.";
             response = await EnhanceWithOpenAi(input, matches, $"This looks like {state.Category} / {state.Subcategory}.\n\n{guidance}\n\nDid these steps resolve the issue?");
             state = state with { Stage = "Troubleshooting", Troubleshooting = "Approved guidance provided" };
@@ -222,6 +231,9 @@ public class ChatService(AppDbContext db, TicketService tickets, IConfiguration 
     private async Task<BotState> IdentifyAsync(string input, BotState state)
     {
         var lower = input.ToLowerInvariant();
+        if (lower.Contains("cookie")) return state with { Category = "General", Subcategory = "Software", Service = "Branch IT", Title = "Clear browser cache and cookies", Details = input };
+        var generalScenario = GeneralScenarios.FirstOrDefault(s => s.Applications.Any(lower.Contains) && s.Symptoms.Any(lower.Contains));
+        if (generalScenario is not null) return state with { Category = "General", Subcategory = "Software", Service = "Branch IT", Title = generalScenario.Title, Details = input };
         if (lower.Contains("cbs") || lower.Contains("core banking") || lower.Contains("catch") || lower.Contains("dispatch")) return state with { Category = "CBS Integration", Subcategory = "Catch & Dispatch", Service = "CTS / CBS Integration", Title = "CBS access or integration issue", Details = input };
         var domainRules = await db.RoutingRules.Where(x => x.IsActive && x.Keywords != null).OrderBy(x => x.Order).ToListAsync();
         foreach (var rule in domainRules.Where(x => !string.IsNullOrWhiteSpace(x.Keywords) && RuleMatcher.ContainsAny(input, x.Keywords))) { var group = await db.AssignmentGroups.FindAsync(rule.AssignmentGroupId); if (group?.Name.Contains("CBS", StringComparison.OrdinalIgnoreCase) == true) return state with { Category = "CBS Integration", Subcategory = "Catch & Dispatch", Service = "CTS / CBS Integration", Title = "CBS URL or host access issue", Details = input }; }
@@ -231,11 +243,11 @@ public class ChatService(AppDbContext db, TicketService tickets, IConfiguration 
         return state;
     }
 
-    private async Task<List<KnowledgeArticle>> SearchKnowledge(string category, string subcategory, string input)
+    private async Task<List<KnowledgeArticle>> SearchKnowledge(string category, string subcategory, string input, string preferredTitle)
     {
         var words = input.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(x => x.Length > 3).ToArray();
         var candidates = await db.KnowledgeArticles.Where(x => x.IsPublished && (x.Category == category || x.Subcategory == subcategory)).ToListAsync();
-        return candidates.OrderByDescending(a => (a.Subcategory == subcategory ? 10 : 0) + words.Count(w => (a.Title + a.Keywords + a.Content).Contains(w, StringComparison.OrdinalIgnoreCase))).Take(3).ToList();
+        return candidates.OrderByDescending(a => (a.Title.Equals(preferredTitle, StringComparison.OrdinalIgnoreCase) ? 100 : 0) + (a.Subcategory == subcategory ? 10 : 0) + words.Count(w => (a.Title + a.Keywords + a.Content).Contains(w, StringComparison.OrdinalIgnoreCase))).Take(3).ToList();
     }
 
     private async Task<string> EnhanceWithOpenAi(string question, List<KnowledgeArticle> articles, string fallback)

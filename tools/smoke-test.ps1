@@ -40,6 +40,21 @@ $jamFixed = PostJson '/api/chat' @{message='Yes, it is fixed now.';sessionId=$ja
 $nextIssue = PostJson '/api/chat' @{message="I also can't access CBS.";sessionId=$jam.sessionId} $user
 Assert ($nextIssue.stage -eq 'Troubleshooting' -and $nextIssue.articles[0].subcategory -eq 'Catch & Dispatch') 'Resolved session detects a new unrelated CBS issue'
 
+$browser = PostJson '/api/chat' @{message='Chrome is behaving strangely. How can I clear cookies?'} $user
+Assert ($browser.stage -eq 'Troubleshooting' -and $browser.articles[0].title -eq 'Clear Browser Cache and Cookies' -and -not $browser.ticketId) 'Browser wording returns cache and cookie troubleshooting without creating a ticket'
+$browserFixed = PostJson '/api/chat' @{message='Yes, that resolved it.';sessionId=$browser.sessionId} $user
+Assert ($browserFixed.stage -eq 'ResolvedWithoutTicket' -and -not $browserFixed.ticketId) 'Resolved browser flow resets without a ticket'
+
+$outlook = PostJson '/api/chat' @{message='Outlook is not syncing and appears offline.'} $user
+Assert ($outlook.stage -eq 'Troubleshooting' -and $outlook.articles[0].title -eq 'Outlook Synchronization and Connectivity') 'Outlook synchronization wording selects connectivity guidance'
+$outlookOffer = PostJson '/api/chat' @{message='It is still not working.';sessionId=$outlook.sessionId} $user
+Assert ($outlookOffer.stage -eq 'OfferActions' -and $outlookOffer.canEscalate -and $outlookOffer.canCreateTicket) 'Unresolved Outlook flow offers live support and ticket actions'
+
+$outlookCache = PostJson '/api/chat' @{message='How do I clear the Outlook cache?'} $user
+Assert ($outlookCache.stage -eq 'Troubleshooting' -and $outlookCache.articles[0].title -eq 'Clear Outlook Cache') 'Outlook cache request selects safe cache guidance'
+$teams = PostJson '/api/chat' @{message='Microsoft Teams is frozen and not responding.'} $user
+Assert ($teams.stage -eq 'Troubleshooting' -and $teams.articles[0].title -eq 'Microsoft Teams Cache and Basic Troubleshooting') 'Teams natural-language symptom selects Teams troubleshooting'
+
 $bot = PostJson '/api/chat' @{message='My scanner keeps disconnecting.'} $user
 $bot = PostJson '/api/chat' @{message='Still not working.';sessionId=$bot.sessionId} $user
 Assert ($bot.stage -eq 'OfferActions' -and $bot.canEscalate -and $bot.canCreateTicket -and -not $bot.ticketId) 'Unresolved bot offers live agent and ticket form together'

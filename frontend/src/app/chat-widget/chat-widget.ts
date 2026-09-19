@@ -7,16 +7,18 @@ import { ApiService } from '../core/api.service';
 type ChatRole = 'user' | 'assistant' | 'agent' | 'system';
 interface UiMessage { id?: number; role: ChatRole; sender?: string; content: string; createdAt: string; canEscalate?: boolean; canCreateTicket?: boolean; ticketNumber?: string; }
 
-@Component({ selector: 'it-chat-widget', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './chat-widget.html', styleUrl: './chat-widget.scss' })
+@Component({ selector: 'it-chat-widget', standalone: true, imports: [CommonModule, FormsModule], templateUrl: './chat-widget.html', styleUrls: ['./chat-widget.scss', './chat-widget-standalone.scss'], host: { '[class.standalone]': 'standalone' } })
 export class ChatWidget implements OnInit, OnDestroy {
   @Input() title = 'Oritso IT Assistant';
+  @Input() standalone = false;
+  @Input() startOpen = false;
   private api = inject(ApiService); private connection?: signalR.HubConnection;
   open = signal(false); busy = signal(false); sessionId?: string; draft = '';
   catalog = signal<any>({ categories: [], services: [] }); ticketForm = signal<any | null>(null); attachment?: File;
   liveSessionId = signal<string | null>(null); liveStatus = signal(''); liveAgent = signal('');
   messages = signal<UiMessage[]>([{ role: 'assistant', content: 'Hello—how can I help today? I can troubleshoot an issue, answer an IT question, check a ticket, or connect you with support.', createdAt: new Date().toISOString() }]);
 
-  ngOnInit() { this.api.get<any>('/catalog').subscribe(x => this.catalog.set(x)); }
+  ngOnInit() { if (this.startOpen || this.standalone) this.open.set(true); this.api.get<any>('/catalog').subscribe(x => this.catalog.set(x)); }
   ngOnDestroy() { this.connection?.stop(); }
   send(action?: 'request-live' | 'create-ticket') {
     if (action === 'create-ticket') { this.sendToBot('Create a ticket for this issue.', action); return; }

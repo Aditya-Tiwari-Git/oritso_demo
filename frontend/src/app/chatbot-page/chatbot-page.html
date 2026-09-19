@@ -1,0 +1,12 @@
+<main class="chatbot-page">
+  <header>
+    <a class="brand" href="/" aria-label="Return to Oritso IT Support CRM"><span>IT</span><div>Oritso<small>IT Support CRM</small></div></a>
+    <div class="module-name"><b>IT Support Assistant</b><small>Standalone support workspace</small></div>
+    <a class="return-link" href="/">Return to CRM</a>
+  </header>
+  @if (api.session()) {
+    <section class="chatbot-workspace"><it-chat-widget [standalone]="true" [startOpen]="true" title="Oritso IT Assistant"></it-chat-widget></section>
+  } @else {
+    <section class="signed-out"><div class="mark">OI</div><h1>Sign in required</h1><p>Open the Oritso IT Support CRM, sign in, and then launch the assistant again.</p><a href="/">Go to sign in</a></section>
+  }
+</main>

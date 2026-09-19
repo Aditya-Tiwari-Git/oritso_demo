@@ -11,6 +11,7 @@ Oritso IT Support CRM is a demo-ready IT Service Management application for bank
 - Ordered routing matches classification plus normalized free-text keywords, URLs, and domains. Scanner work goes to **CTS Hardware Support**, configured CBS hosts such as `cbs.com` go to **CBS Support**, and unmatched work goes to **Service Desk**.
 - Priority is server-calculated from ordered Admin rules: CBS defaults to **High**, scanner issues to **Medium**, and unmatched work to **Low**. User-supplied priority values are ignored.
 - The bot searches approved knowledge first. If troubleshooting is unresolved, it offers either an in-widget prefilled ticket form or a live-agent transfer; it supports multiple issue cycles in one session.
+- General IT guidance includes browser cache/cookies, Outlook cache, Outlook freeze/synchronization, and Microsoft Teams cache/freeze/connectivity scenarios. Admins can launch the same reusable chatbot in a full-height `/chatbot` tab using **Open Chatbot ↗**.
 - Live support uses authenticated SignalR WebSockets, persists the transcript, and can link or convert a conversation into a routed ticket.
 
 ## Demo personas
@@ -67,7 +68,7 @@ cd frontend
 cmd /c npm start
 ```
 
-Open `http://localhost:4200`. The API root at `http://localhost:5266/`, `/health`, and `/api/auth/login` are public; protected APIs require the signed session token Angular attaches through its HTTP interceptor.
+Open `http://localhost:4200`. An authenticated Admin can open the standalone assistant at `http://localhost:4200/chatbot` from the header. The API root at `http://localhost:5266/`, `/health`, and `/api/auth/login` are public; protected APIs require the signed session token Angular attaches through its HTTP interceptor.
 
 ## OpenAI diagnostics
 
@@ -89,7 +90,7 @@ Stop the API and run:
 powershell -ExecutionPolicy Bypass -File tools/reset-demo.ps1
 ```
 
-The next API start recreates SQLite with CTS teams, memberships, classifications, routing rules, automatic priority rules, statuses, and three complete knowledge articles. Existing databases receive the additive priority-rule table and missing enhancement seed data at startup without being recreated. The pre-upgrade database was preserved under `backend/ItSupport.Api/data/backup-pre-cts-upgrade`.
+The next API start recreates SQLite with CTS teams, memberships, classifications, routing rules, automatic priority rules, statuses, and the complete CTS/CBS/general IT knowledge set. Existing databases receive the additive priority-rule table and missing enhancement seed data at startup without being recreated. The pre-upgrade database was preserved under `backend/ItSupport.Api/data/backup-pre-cts-upgrade`.
 
 ## Verification
 
@@ -101,7 +102,7 @@ cd frontend
 node signalr-smoke.mjs
 ```
 
-The API suite covers public/protected endpoints, all persona logins, queue authorization, sequential numbering, URL/domain routing, deterministic priority precedence, user priority-tampering resistance, email/contact data, assignment, comments/work notes, history, resolution, general and multi-issue bot flows, prefilled bot ticket creation, CBS/scanner knowledge, contextual live transfer, transcript persistence, conversion to a ticket, admin membership changes, Admin-only operational deletion, database cascades, physical attachment cleanup, and deletion audit tombstones. The SignalR test establishes two authenticated WebSocket clients and verifies both message directions, agent identity, and persisted ordering.
+The API suite covers public/protected endpoints, all persona logins, queue authorization, sequential numbering, URL/domain routing, deterministic priority precedence, user priority-tampering resistance, email/contact data, assignment, comments/work notes, history, resolution, browser/Outlook/Teams and multi-issue bot flows, resolved/unresolved handling, prefilled bot ticket creation, CBS/scanner knowledge, contextual live transfer, transcript persistence, conversion to a ticket, admin membership changes, Admin-only operational deletion, database cascades, physical attachment cleanup, and deletion audit tombstones. The SignalR test establishes two authenticated WebSocket clients and verifies both message directions, agent identity, and persisted ordering.
 
 ## Docker/server deployment
 
