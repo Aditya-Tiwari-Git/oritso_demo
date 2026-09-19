@@ -1,0 +1,67 @@
+.delete-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  margin: 8px 0;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #f6fafc;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.bulk-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.bulk-toolbar .selection-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.bulk-toolbar .delete-selected {
+  border: 0;
+  border-radius: 7px;
+  background: var(--danger);
+  color: #fff;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.delete-row .row-select {
+  width: 16px;
+  height: 16px;
+  margin: 0 8px 0 0;
+  accent-color: var(--teal);
+  flex: 0 0 auto;
+}
+
+.delete-row > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.bulk-toolbar input {
+  accent-color: var(--teal);
+}
+
+@media (max-width: 700px) {
+  .bulk-toolbar { flex-wrap: wrap; }
+  .bulk-toolbar .selection-count { margin-left: 0; }
+  .bulk-toolbar .delete-selected { margin-left: auto; }
+}

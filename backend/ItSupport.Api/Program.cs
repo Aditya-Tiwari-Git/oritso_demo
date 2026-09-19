@@ -130,6 +130,48 @@ admin.MapGet("/deletion-inventory", async (AppDbContext db) => Results.Ok(new {
     chatSessions = (await db.ChatSessions.AsNoTracking().Include(x => x.Messages).ToListAsync()).OrderByDescending(x => x.UpdatedAt).Select(x => new { x.Id, x.PublicId, x.UserName, x.TicketId, messageCount = x.Messages.Count, x.UpdatedAt }),
     liveSessions = (await db.LiveSupportSessions.AsNoTracking().Include(x => x.Messages).ToListAsync()).OrderByDescending(x => x.UpdatedAt).Select(x => new { x.Id, x.PublicId, x.Subject, x.RequestedBy, x.AcceptedBy, x.Status, x.TicketId, messageCount = x.Messages.Count, x.UpdatedAt })
 }));
+admin.MapPost("/{kind}/bulk-delete", async (string kind, BulkDeleteRequest request, HttpContext c, AppDbContext db, IWebHostEnvironment env, IHubContext<LiveSupportHub> hub) => {
+    var ids = (request.Ids ?? []).Where(x => x > 0).Distinct().Take(500).ToArray();
+    if (ids.Length == 0) return Results.BadRequest(new { error = "Select at least one valid record." });
+    var failed = new List<object>(); var warnings = new List<string>(); var deleted = new List<int>();
+    if (kind == "tickets")
+    {
+        var records = await db.Tickets.Include(x => x.Attachments).Where(x => ids.Contains(x.Id)).ToListAsync();
+        var found = records.Select(x => x.Id).ToHashSet(); foreach (var id in ids.Where(x => !found.Contains(x))) failed.Add(new { id, reason = "Ticket not found." });
+        var storedNames = records.SelectMany(x => x.Attachments).Select(x => x.StoredName).Distinct().ToArray();
+        foreach (var session in await db.ChatSessions.Where(x => x.TicketId.HasValue && found.Contains(x.TicketId.Value)).ToListAsync()) session.TicketId = null;
+        foreach (var session in await db.LiveSupportSessions.Where(x => x.TicketId.HasValue && found.Contains(x.TicketId.Value)).ToListAsync()) session.TicketId = null;
+        foreach (var related in await db.Tickets.Where(x => x.ParentMajorIncidentId.HasValue && found.Contains(x.ParentMajorIncidentId.Value)).ToListAsync()) related.ParentMajorIncidentId = null;
+        foreach (var ticket in records) db.AuditLogs.Add(new() { Actor = UserName(c), Method = "DELETE", Path = $"Admin bulk deleted ticket {ticket.Number}; cascaded comments, work notes, history and {ticket.Attachments.Count} attachment record(s).", StatusCode = 204 });
+        db.Tickets.RemoveRange(records); await db.SaveChangesAsync(); deleted.AddRange(found);
+        var uploadRoot = Path.GetFullPath(Path.Combine(env.ContentRootPath, "uploads"));
+        foreach (var storedName in storedNames)
+        {
+            if (await db.TicketAttachments.AnyAsync(x => x.StoredName == storedName)) continue;
+            var path = Path.GetFullPath(Path.Combine(uploadRoot, storedName));
+            try { if (path.StartsWith(uploadRoot, StringComparison.OrdinalIgnoreCase) && File.Exists(path)) File.Delete(path); }
+            catch (Exception ex) { warnings.Add($"Attachment file {storedName} could not be removed: {ex.Message}"); }
+        }
+    }
+    else if (kind == "chat-sessions")
+    {
+        var records = await db.ChatSessions.Include(x => x.Messages).Where(x => ids.Contains(x.Id)).ToListAsync();
+        var found = records.Select(x => x.Id).ToHashSet(); foreach (var id in ids.Where(x => !found.Contains(x))) failed.Add(new { id, reason = "Chat session not found." });
+        foreach (var session in records) db.AuditLogs.Add(new() { Actor = UserName(c), Method = "DELETE", Path = $"Admin bulk deleted chatbot session {session.PublicId} for {session.UserName} with {session.Messages.Count} message(s).", StatusCode = 204 });
+        db.ChatSessions.RemoveRange(records); await db.SaveChangesAsync(); deleted.AddRange(found);
+    }
+    else if (kind == "live-sessions")
+    {
+        var records = await db.LiveSupportSessions.Include(x => x.Messages).Where(x => ids.Contains(x.Id)).ToListAsync();
+        var found = records.Select(x => x.Id).ToHashSet(); foreach (var id in ids.Where(x => !found.Contains(x))) failed.Add(new { id, reason = "Live support session not found." });
+        foreach (var session in records) db.AuditLogs.Add(new() { Actor = UserName(c), Method = "DELETE", Path = $"Admin bulk deleted live session {session.PublicId} for {session.RequestedBy} with {session.Messages.Count} message(s).", StatusCode = 204 });
+        db.LiveSupportSessions.RemoveRange(records); await db.SaveChangesAsync(); deleted.AddRange(found);
+        foreach (var session in records) await hub.Clients.Group(session.PublicId.ToString()).SendAsync("SessionDeleted", new { session.PublicId });
+        if (records.Count > 0) await hub.Clients.All.SendAsync("QueueChanged");
+    }
+    else return Results.BadRequest(new { error = "Bulk deletion is not supported for this record type." });
+    return Results.Ok(new { requested = ids.Length, deletedCount = deleted.Count, deletedIds = deleted, failed, warnings });
+});
 admin.MapDelete("/tickets/{id:int}", async (int id, HttpContext c, AppDbContext db, IWebHostEnvironment env) => {
     var ticket = await db.Tickets.Include(x => x.Attachments).FirstOrDefaultAsync(x => x.Id == id); if (ticket is null) return Results.NotFound(new { error = "Ticket not found." });
     var attachments = ticket.Attachments.Select(x => x.StoredName).Distinct().ToArray();

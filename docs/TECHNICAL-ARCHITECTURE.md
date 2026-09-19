@@ -263,6 +263,7 @@ All paths below except login are authenticated.
 | `GET /api/admin/configuration`, `/users`, `/bot-status` | Admin console data | Admin only |
 | `POST/PUT/DELETE /api/admin/*` configuration routes | Users, memberships, catalogs, rules, articles | Admin only |
 | `GET /api/admin/deletion-inventory` | Operational deletion targets | Admin only |
+| `POST /api/admin/{kind}/bulk-delete` | Bulk deletion with per-record failures and cleanup warnings | Admin only |
 | `DELETE /api/admin/tickets/{id}` | Cascading ticket deletion and file cleanup | Admin only |
 | `DELETE /api/admin/chat-sessions/{id}` | Cascading AI conversation deletion | Admin only |
 | `DELETE /api/admin/live-sessions/{id}` | Cascading transcript deletion | Admin only |

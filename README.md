@@ -8,6 +8,7 @@ Oritso IT Support CRM is a demo-ready IT Service Management application for bank
 - Agents see only tickets in their assignment groups or assigned directly to them. They can accept, reassign, prioritize, investigate with internal notes, escalate, resolve, and participate in realtime chat.
 - Admins manage user emails, agent-to-group memberships, support teams, categories/subcategories, services, routing rules, automatic priority rules, and knowledge articles.
 - Admins can permanently delete tickets, chatbot conversations, and live-support transcripts from the Admin danger zone. Related records are cascaded, unreferenced attachment files are removed, and a deletion tombstone is retained in the audit log.
+- The deletion console supports per-record and bulk selection, Select All, partial-failure reporting, and a single Admin-authorized bulk request for each operational record type.
 - Ordered routing matches classification plus normalized free-text keywords, URLs, and domains. Scanner work goes to **CTS Hardware Support**, configured CBS hosts such as `cbs.com` go to **CBS Support**, and unmatched work goes to **Service Desk**.
 - Priority is server-calculated from ordered Admin rules: CBS defaults to **High**, scanner issues to **Medium**, and unmatched work to **Low**. User-supplied priority values are ignored.
 - The bot searches approved knowledge first. If troubleshooting is unresolved, it offers either an in-widget prefilled ticket form or a live-agent transfer; it supports multiple issue cycles in one session.

@@ -29,3 +29,4 @@ public record UserAdminRequest([Required] string UserName, [Required] string Dis
 public record LiveSupportRequest(string? Subject, int? TicketId = null);
 public record LiveMessageRequest([Required, MaxLength(2000)] string Body);
 public record LiveLinkTicketRequest(int? TicketId, bool CreateTicket = false, string? Title = null, string? Description = null);
+public record BulkDeleteRequest([Required, MinLength(1), MaxLength(500)] int[] Ids);

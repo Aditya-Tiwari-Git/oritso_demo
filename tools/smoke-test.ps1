@@ -113,6 +113,42 @@ Assert (($membership.memberships|Where-Object userName -eq 'rahul').assignmentGr
 Invoke-RestMethod -Method Put -Uri "$BaseUrl/api/admin/memberships/rahul" -Headers $admin -ContentType 'application/json' -Body (@{userName='rahul';assignmentGroupIds=$originalGroups}|ConvertTo-Json) | Out-Null
 
 # Administrative deletion: authorization, cascades, physical attachment cleanup, and retained audit tombstones.
+$bulkTicketA = PostJson '/api/tickets' @{type='Incident';title='Bulk deletion fixture A';description='First bulk deletion ticket with dependent records.';category='CTS Hardware';subcategory='Connectivity';priority='Medium';service='CTS Scanner';impact='Single User';urgency='Medium'} $user
+$bulkTicketB = PostJson '/api/tickets' @{type='Incident';title='Bulk deletion fixture B';description='Second bulk deletion ticket.';category='General';subcategory='Software';priority='Low';service='Branch IT';impact='Single User';urgency='Low'} $user
+PostJson "/api/tickets/$($bulkTicketA.id)/comments" @{body='Bulk deletion dependent comment.'} $user | Out-Null
+$bulkFile = Join-Path $env:TEMP 'oritso-bulk-delete-fixture.txt'; [IO.File]::WriteAllText($bulkFile, 'Oritso bulk attachment deletion fixture')
+$bulkUploadJson = & curl.exe -sS -X POST -H "Authorization: $($admin.Authorization)" -F "file=@$bulkFile;type=text/plain" "$BaseUrl/api/tickets/$($bulkTicketA.id)/attachments"
+Remove-Item -LiteralPath $bulkFile -Force
+if ($LASTEXITCODE -ne 0) { throw 'Bulk attachment upload fixture failed.' }
+$bulkAttachment = $bulkUploadJson | ConvertFrom-Json
+$bulkAttachmentPath = Join-Path (Resolve-Path 'backend/ItSupport.Api/uploads') $bulkAttachment.storedName
+$bulkChatA = PostJson '/api/chat' @{message='Bulk delete browser cache conversation.'} $user
+$bulkChatB = PostJson '/api/chat' @{message='Bulk delete Outlook cache conversation.'} $user
+$bulkLiveA = PostJson '/api/live-support' @{subject='Bulk deletion live fixture A'} $user
+$bulkLiveB = PostJson '/api/live-support' @{subject='Bulk deletion live fixture B'} $user
+$bulkInventory = Invoke-RestMethod "$BaseUrl/api/admin/deletion-inventory" -Headers $admin
+$bulkChatIds = @($bulkInventory.chatSessions | Where-Object { $_.publicId -in @($bulkChatA.sessionId, $bulkChatB.sessionId) } | ForEach-Object id)
+$bulkLiveIds = @($bulkInventory.liveSessions | Where-Object { $_.publicId -in @($bulkLiveA.publicId, $bulkLiveB.publicId) } | ForEach-Object id)
+Assert ($bulkChatIds.Count -eq 2 -and $bulkLiveIds.Count -eq 2 -and (Test-Path -LiteralPath $bulkAttachmentPath)) 'Bulk deletion fixtures and dependent attachment created'
+
+foreach ($headers in @($user, $rahul)) {
+    foreach ($kind in @('tickets', 'chat-sessions', 'live-sessions')) {
+        try { PostJson "/api/admin/$kind/bulk-delete" @{ids=@(999999999)} $headers | Out-Null; throw "Non-admin bulk deleted $kind" }
+        catch { Assert ($_.Exception.Response.StatusCode.value__ -eq 403) "Non-admin denied bulk DELETE $kind" }
+    }
+}
+
+$missingBulkId = 999999999
+$bulkTicketResult = PostJson '/api/admin/tickets/bulk-delete' @{ids=@($bulkTicketA.id, $bulkTicketB.id, $missingBulkId)} $admin
+$bulkChatResult = PostJson '/api/admin/chat-sessions/bulk-delete' @{ids=@($bulkChatIds + $missingBulkId)} $admin
+$bulkLiveResult = PostJson '/api/admin/live-sessions/bulk-delete' @{ids=@($bulkLiveIds + $missingBulkId)} $admin
+Assert ($bulkTicketResult.deletedCount -eq 2 -and $bulkTicketResult.failed.Count -eq 1) 'Ticket bulk delete reports partial success in one request'
+Assert ($bulkChatResult.deletedCount -eq 2 -and $bulkChatResult.failed.Count -eq 1) 'Chat-session bulk delete reports partial success in one request'
+Assert ($bulkLiveResult.deletedCount -eq 2 -and $bulkLiveResult.failed.Count -eq 1) 'Live-session bulk delete reports partial success in one request'
+$afterBulk = Invoke-RestMethod "$BaseUrl/api/admin/deletion-inventory" -Headers $admin
+Assert (-not ($afterBulk.tickets.id -contains $bulkTicketA.id) -and -not ($afterBulk.tickets.id -contains $bulkTicketB.id) -and -not (Test-Path -LiteralPath $bulkAttachmentPath)) 'Bulk ticket deletion refresh data has no records or attachment file'
+Assert (-not ($afterBulk.chatSessions.id | Where-Object { $_ -in $bulkChatIds }) -and -not ($afterBulk.liveSessions.id | Where-Object { $_ -in $bulkLiveIds })) 'Bulk chat and live records are absent from refreshed inventory'
+
 $deleteFixture = PostJson '/api/tickets' @{type='Incident';title='Administrative deletion fixture';description='Ticket used to verify safe cascading deletion.';category='CTS Hardware';subcategory='Connectivity';priority='Medium';service='CTS Scanner';impact='Single User';urgency='Medium'} $user
 $fixtureFile = Join-Path $env:TEMP 'oritso-delete-fixture.txt'; [IO.File]::WriteAllText($fixtureFile, 'Oritso attachment deletion fixture')
 $uploadJson = & curl.exe -sS -X POST -H "Authorization: $($admin.Authorization)" -F "file=@$fixtureFile;type=text/plain" "$BaseUrl/api/tickets/$($deleteFixture.id)/attachments"
@@ -152,6 +188,8 @@ if ($sqlite) {
     Assert ([int]$orphans -eq 0) 'Administrative deletion leaves no orphan child rows'
     $tombstones = & $sqlite.Source $dbPath "SELECT COUNT(*) FROM AuditLogs WHERE Method='DELETE' AND Path LIKE 'Admin deleted %';"
     Assert ([int]$tombstones -ge 3) 'Administrative deletion preserves audit tombstones'
+    $bulkOrphans = & $sqlite.Source $dbPath "SELECT (SELECT COUNT(*) FROM TicketComments WHERE TicketId IN ($($bulkTicketA.id),$($bulkTicketB.id))) + (SELECT COUNT(*) FROM TicketHistory WHERE TicketId IN ($($bulkTicketA.id),$($bulkTicketB.id))) + (SELECT COUNT(*) FROM TicketAttachments WHERE TicketId IN ($($bulkTicketA.id),$($bulkTicketB.id))) + (SELECT COUNT(*) FROM ChatMessages WHERE ChatSessionId IN ($($bulkChatIds -join ','))) + (SELECT COUNT(*) FROM LiveSupportMessages WHERE LiveSupportSessionId IN ($($bulkLiveIds -join ',')));"
+    Assert ([int]$bulkOrphans -eq 0) 'Bulk deletion leaves no orphan dependent rows'
 }
 
 Write-Host "SMOKE TESTS PASSED: $script:passed assertions"
