@@ -5,6 +5,7 @@ import { ApiService, Ticket } from './core/api.service';
 import { ChatWidget } from './chat-widget/chat-widget';
 import { LiveSupport } from './live-support/live-support';
 import { ChatbotPage } from './chatbot-page/chatbot-page';
+import { portalDisplayName, portalForRole } from './core/session-context';
 
 type OperationalKind = 'tickets' | 'chat-sessions' | 'live-sessions';
 
@@ -13,13 +14,14 @@ export class App {
   readonly standaloneChatbot = window.location.pathname.replace(/\/+$/, '') === '/chatbot';
   majorLinkId: number | null = null;
   api = inject(ApiService); view = signal('overview'); tickets = signal<Ticket[]>([]); catalog = signal<any>({ categories: [], services: [], priorities: [], statuses: [], assignmentGroups: [] }); admin = signal<any>({ groups: [], memberships: [], users: [], categories: [], services: [], rules: [], priorityRules: [], articles: [], botStatus: null, deletionInventory: { tickets: [], chatSessions: [], liveSessions: [] } }); selected = signal<Ticket | null>(null); loading = signal(false); error = signal(''); notice = signal(''); createAttachment?: File;
-  login = { userName: 'admin', password: 'Admin@123' }; ticket = { type: 'Incident', title: '', description: '', category: 'CTS Hardware', subcategory: 'Scanner Jam', priority: null, service: 'CTS Scanner', impact: 'Single User', urgency: 'Medium' }; comment = ''; workNote = ''; resolution = { code: 'Solved (Permanently)', notes: '' }; article = { title: '', content: '', keywords: '', category: 'CTS Hardware', subcategory: 'Scanner Jam', isPublished: true }; rule: any = { name: '', order: 100, category: '', subcategory: '', service: '', priority: '', ticketType: '', keywords: '', assignmentGroupId: null, isActive: true }; priorityRule: any = { name: '', description: '', keywords: '', category: '', service: '', priority: 'Low', order: 100, isActive: true }; newItem: any = { kind: 'groups', name: '', categoryId: null };
+  readonly portalTitle = portalDisplayName(this.api.portalContext);
+  login = { userName: '', password: '' }; ticket = { type: 'Incident', title: '', description: '', category: 'CTS Hardware', subcategory: 'Scanner Jam', priority: null, service: 'CTS Scanner', impact: 'Single User', urgency: 'Medium' }; comment = ''; workNote = ''; resolution = { code: 'Solved (Permanently)', notes: '' }; article = { title: '', content: '', keywords: '', category: 'CTS Hardware', subcategory: 'Scanner Jam', isPublished: true }; rule: any = { name: '', order: 100, category: '', subcategory: '', service: '', priority: '', ticketType: '', keywords: '', assignmentGroupId: null, isActive: true }; priorityRule: any = { name: '', description: '', keywords: '', category: '', service: '', priority: 'Low', order: 100, isActive: true }; newItem: any = { kind: 'groups', name: '', categoryId: null };
   userEditor = { userName: '', displayName: '', email: '', role: 'User', password: '', isActive: true };
   operationalSelection = signal<Record<OperationalKind, number[]>>({ tickets: [], 'chat-sessions': [], 'live-sessions': [] });
   metrics = computed(() => ({ total: this.tickets().length, active: this.tickets().filter(x => !['Resolved', 'Closed'].includes(x.status)).length, major: this.tickets().filter(x => x.type === 'Major Incident').length, resolved: this.tickets().filter(x => x.status === 'Resolved').length }));
-  signIn() { this.error.set(''); this.api.login(this.login.userName, this.login.password).subscribe({ next: () => this.load(), error: () => this.error.set('Invalid username or password.') }); }
-  logout() { this.api.logout(); this.tickets.set([]); this.view.set('overview'); }
-  openChatbot() { window.open('/chatbot', '_blank', 'noopener,noreferrer'); }
+  signIn() { this.error.set(''); this.api.login(this.login.userName, this.login.password).subscribe({ next: session => { const portal = portalForRole(session.role); if (!portal) { this.error.set('This account has an unsupported role.'); return; } window.location.assign(`/${portal}`); }, error: e => this.error.set(e.error?.error || e.message || 'Invalid username or password.') }); }
+  logout() { this.api.logout(); this.tickets.set([]); this.view.set('overview'); window.location.assign('/'); }
+  openChatbot() { window.open(`/chatbot?portal=${this.api.portalContext}`, '_blank', 'noopener,noreferrer'); }
   load() { this.loading.set(true); this.api.get<any>('/catalog').subscribe(c => this.catalog.set(c)); this.api.get<any[]>('/knowledge').subscribe(articles => this.admin.update(x => ({ ...x, articles }))); this.api.get<Ticket[]>('/tickets').subscribe({ next: t => { this.tickets.set(t); this.loading.set(false); }, error: () => this.loading.set(false) }); if (this.api.session()?.role === 'Admin') this.loadAdmin(); }
   loadAdmin() { this.api.get<any>('/admin/configuration').subscribe(x => this.admin.update(a => ({...a, ...x}))); this.api.get<any[]>('/admin/users').subscribe(users => this.admin.update(a => ({...a, users}))); this.api.get<any>('/admin/bot-status').subscribe(botStatus => this.admin.update(a => ({...a, botStatus}))); this.api.get<any>('/admin/deletion-inventory').subscribe(deletionInventory => this.admin.update(a => ({...a, deletionInventory}))); }
   navigate(view: string) { this.view.set(view); this.selected.set(null); if (view === 'admin') this.loadAdmin(); }
@@ -55,5 +57,5 @@ export class App {
   groupName(id?: number) { return this.catalog().assignmentGroups.find((x: any) => x.id === id)?.name || this.admin().groups.find((x: any) => x.id === id)?.name || 'Unassigned'; }
   teamsLink(email?: string) { return email ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(email)}` : null; }
   greeting() { return new Date().getHours() < 12 ? 'morning' : 'afternoon'; }
-  ngOnInit() { if (!this.standaloneChatbot && this.api.session()) this.load(); }
+  ngOnInit() { if (!this.standaloneChatbot && this.api.portalContext !== 'default' && !this.api.session()) { window.location.replace('/'); return; } if (!this.standaloneChatbot && this.api.session()) { if (this.api.portalContext === 'agent') this.view.set('live'); this.load(); } }
 }

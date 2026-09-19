@@ -2,7 +2,7 @@ param([string]$BaseUrl = 'http://localhost:5266')
 $ErrorActionPreference = 'Stop'
 $script:passed = 0
 function Assert([bool]$condition, [string]$name) { if (-not $condition) { throw "FAILED: $name" }; $script:passed++; Write-Host "PASS $name" }
-function Login([string]$user, [string]$password) { $session = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/auth/login" -ContentType 'application/json' -Body (@{userName=$user;password=$password}|ConvertTo-Json); return @{Authorization="Bearer $($session.token)"} }
+function Login([string]$user, [string]$password, [string]$portal = '') { $suffix = if ($portal) { "/$portal" } else { '' }; $session = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/auth/login$suffix" -ContentType 'application/json' -Body (@{userName=$user;password=$password}|ConvertTo-Json); return @{Authorization="Bearer $($session.token)";Role=$session.role;UserName=$session.userName} }
 function PostJson([string]$path, $body, $headers) { Invoke-RestMethod -Method Post -Uri "$BaseUrl$path" -Headers $headers -ContentType 'application/json' -Body ($body|ConvertTo-Json -Depth 8) }
 function PatchJson([string]$path, $body, $headers) { Invoke-RestMethod -Method Patch -Uri "$BaseUrl$path" -Headers $headers -ContentType 'application/json' -Body ($body|ConvertTo-Json -Depth 8) }
 
@@ -10,8 +10,12 @@ $root = Invoke-RestMethod "$BaseUrl/"; Assert ($root.status -eq 'running' -and $
 $health = Invoke-RestMethod "$BaseUrl/health"; Assert ($health.status -eq 'healthy') 'Public health endpoint'
 try { Invoke-RestMethod "$BaseUrl/api/tickets" | Out-Null; throw 'Protected endpoint allowed anonymous request' } catch { Assert ($_.Exception.Response.StatusCode.value__ -eq 401) 'Protected endpoint rejects anonymous request' }
 $admin = Login 'admin' 'Admin@123'; $rahul = Login 'rahul' 'Rahul@123'; $priya = Login 'priya' 'Priya@123'; $user = Login 'user' 'User@123'
-Assert ($admin.Authorization -and $rahul.Authorization -and $priya.Authorization -and $user.Authorization) 'All three personas login'
+Assert ($admin.Role -eq 'Admin' -and $rahul.Role -eq 'ITSupport' -and $priya.Role -eq 'ITSupport' -and $user.Role -eq 'User') 'Common login authenticates valid passwords and returns backend-assigned roles'
+$adminMe = Invoke-RestMethod "$BaseUrl/api/me" -Headers $admin; $agentMe = Invoke-RestMethod "$BaseUrl/api/me" -Headers $rahul; $userMe = Invoke-RestMethod "$BaseUrl/api/me" -Headers $user
+Assert ($adminMe.role -eq 'Admin' -and $agentMe.role -eq 'ITSupport' -and $userMe.role -eq 'User') 'Dedicated portal tokens retain three simultaneous identities'
+try { Login 'user' 'incorrect-password' | Out-Null; throw 'Wrong password was accepted' } catch { Assert ($_.Exception.Response.StatusCode.value__ -eq 401) 'Wrong password is rejected by common login' }
 try { Invoke-RestMethod "$BaseUrl/api/admin/users" -Headers $user | Out-Null; throw 'User accessed admin' } catch { Assert ($_.Exception.Response.StatusCode.value__ -eq 403) 'Admin API rejects User role' }
+try { Invoke-RestMethod "$BaseUrl/api/admin/users" -Headers $rahul | Out-Null; throw 'Agent accessed admin' } catch { Assert ($_.Exception.Response.StatusCode.value__ -eq 403) 'Admin API rejects ITSupport role' }
 $catalog = Invoke-RestMethod "$BaseUrl/api/catalog" -Headers $user; $ctsGroup = ($catalog.assignmentGroups|Where-Object name -eq 'CTS Hardware Support').id; $cbsGroup = ($catalog.assignmentGroups|Where-Object name -eq 'CBS Support').id
 Assert ($ctsGroup -and $cbsGroup) 'CTS seed groups available'
 

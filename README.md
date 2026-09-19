@@ -69,7 +69,7 @@ cd frontend
 cmd /c npm start
 ```
 
-Open `http://localhost:4200`. An authenticated Admin can open the standalone assistant at `http://localhost:4200/chatbot` from the header. The API root at `http://localhost:5266/`, `/health`, and `/api/auth/login` are public; protected APIs require the signed session token Angular attaches through its HTTP interceptor.
+Open `http://localhost:4200/` and sign in through the common login. The backend-returned role sends the account to `/user`, `/agent`, or `/admin`; those URLs are protected destinations and redirect unauthenticated or wrong-role sessions back to `/`. Each destination uses a separate browser storage key, so User, Support Agent, and Admin sessions can remain active in separate tabs simultaneously. An authenticated Admin can open the standalone assistant from the header. The API root, `/health`, and `/api/auth/login` are public; protected APIs require the signed session token Angular attaches through its portal-aware HTTP interceptor.
 
 ## OpenAI diagnostics
 
@@ -103,7 +103,7 @@ cd frontend
 node signalr-smoke.mjs
 ```
 
-The API suite covers public/protected endpoints, all persona logins, queue authorization, sequential numbering, URL/domain routing, deterministic priority precedence, user priority-tampering resistance, email/contact data, assignment, comments/work notes, history, resolution, browser/Outlook/Teams and multi-issue bot flows, resolved/unresolved handling, prefilled bot ticket creation, CBS/scanner knowledge, contextual live transfer, transcript persistence, conversion to a ticket, admin membership changes, Admin-only operational deletion, database cascades, physical attachment cleanup, and deletion audit tombstones. The SignalR test establishes two authenticated WebSocket clients and verifies both message directions, agent identity, and persisted ordering.
+The API suite covers dedicated portal role enforcement, simultaneous persona identities, public/protected endpoints, queue authorization, sequential numbering, routing, priorities, ticket lifecycle, browser/Outlook/Teams and multi-issue bot flows, live transfer, Admin deletion, cascades, attachment cleanup, and audit tombstones. The SignalR test authenticates User, Agent, and Admin portal sessions together, escalates from the chatbot, and verifies both real-time message directions without identity replacement.
 
 ## Docker/server deployment
 

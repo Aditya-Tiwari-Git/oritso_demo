@@ -46,15 +46,16 @@ sequenceDiagram
     User->>Login: Enter credentials
     Login->>API: username + password
     API->>Creds: Validate active user
-    API-->>Login: Signed session token + persona
-    Login->>Store: Save it-session
+    API-->>Login: Signed session token + backend role
+    Login->>Store: Save token under returned role's portal key
+    Login->>Login: Redirect to /user, /agent, or /admin
     Interceptor->>Store: Read token
     Interceptor->>API: Authorization: Bearer token
     API->>API: Verify signature and expiry
     API-->>User: Protected response or 401/403
 ```
 
-The API authentication middleware protects `/api` and `/hubs`; only `/`, `/health`, `/api/auth/*`, and development OpenAPI routes are public. The SignalR client passes the same token as `access_token` during its WebSocket negotiation. The Admin route group has a server-side role filter. Therefore changing or hiding Angular controls cannot grant Admin access.
+The API authentication middleware protects `/api` and `/hubs`; only `/`, `/health`, `/api/auth/*`, and development OpenAPI routes are public. The common `/api/auth/login` validates file-backed credentials and returns the backend-assigned role. Angular—not the username—maps that returned role to `/user`, `/admin`, or `/agent`, storing tokens as `it-session-user`, `it-session-admin`, and `it-session-agent` so same-origin tabs do not overwrite one another. Route guards validate role and expiry on refresh; unauthenticated or wrong-role destination requests return to `/`. Logout removes only the active portal key. The SignalR client passes that portal's token as `access_token` during WebSocket negotiation. The Admin route group independently enforces the Admin role server-side, so changing Angular storage or controls cannot grant Admin API access.
 
 | Persona | Effective authorization |
 |---|---|
@@ -249,6 +250,7 @@ All paths below except login are authenticated.
 | Method/path | Purpose | Authorization |
 |---|---|---|
 | `POST /api/auth/login` | Validate file credentials and issue signed session | Public |
+| `POST /api/auth/login/{user\|admin\|agent}` | Backward-compatible role-constrained API entry points; the Angular UI uses the common login | Public |
 | `GET /api/me`, `GET /api/catalog` | Current persona and active catalog | Any authenticated |
 | `GET/POST /api/tickets` | Authorized queue; create routed ticket | Authenticated, list filtered by persona |
 | `GET /api/tickets/{id}` | Detail, comments, permitted notes/history/attachments | Ticket access policy |

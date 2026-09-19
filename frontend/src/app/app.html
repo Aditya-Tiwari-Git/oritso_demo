@@ -4,15 +4,15 @@
   <main class="login-shell">
     <section class="login-brand">
       <!-- <div class="mark">IT</div> -->
-      <span class="eyebrow" style="font-size: 18px;">ORITSO IT SUPPORT CRM</span>
+      <span class="eyebrow" style="font-size: 18px;">ORITSO {{ portalTitle.toUpperCase() }}</span>
       <h1>Banking support,<br /><em>without the wait.</em></h1>
       <p>One workspace for CTS incidents, clearing integrations, knowledge, and human support.</p>
       <!-- <div class="signal"><span></span> Demo services operational</div> -->
     </section>
     <section class="login-panel">
       <form (ngSubmit)="signIn()">
-        <span class="eyebrow dark">SECURE WORKSPACE</span>
-        <h2>Welcome</h2>
+        <span class="eyebrow dark">SECURE {{ portalTitle.toUpperCase() }}</span>
+        <h2>{{ portalTitle }}</h2>
         <!-- <p>Choose a persona to explore the complete support workflow.</p> -->
         <label
           >Username<input
@@ -31,11 +31,7 @@
         @if (error()) {
           <div class="alert">{{ error() }}</div>
         }
-        <button class="primary" type="submit">Enter Oritso IT Support CRM <span>→</span></button>
-        <!-- <div class="demo">
-          <b>Demo personas</b><span>admin / Admin&#64;123</span><span>rahul / Rahul&#64;123</span
-          ><span>priya / Priya&#64;123</span><span>user / User&#64;123</span>
-        </div> -->
+        <button class="primary" type="submit">Enter {{ portalTitle }} <span>→</span></button>
       </form>
     </section>
   </main>
@@ -44,7 +40,7 @@
     <aside>
       <div class="logo">
         <span>IT</span>
-        <div>Oritso<small>IT Support CRM</small></div>
+        <div>Oritso<small>{{ portalTitle }}</small></div>
       </div>
       <nav>
         <button [class.active]="view() === 'overview'" (click)="navigate('overview')">
@@ -95,7 +91,7 @@
     <main class="workspace">
       <header class="topbar">
         <span class="breadcrumb"
-          >ORITSO IT SUPPORT CRM / {{ api.session()?.role?.toUpperCase() }} /
+          >ORITSO {{ portalTitle.toUpperCase() }} / {{ api.session()?.role?.toUpperCase() }} /
           {{ view().toUpperCase() }}</span
         >
         <div class="top-actions">

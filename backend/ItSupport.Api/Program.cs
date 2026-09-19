@@ -40,7 +40,8 @@ if (app.Environment.IsDevelopment()) app.MapOpenApi();
 
 app.MapGet("/", () => Results.Ok(new { service = "Oritso IT Support CRM API", status = "running", version = "2.1", health = "/health" }));
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", utc = DateTimeOffset.UtcNow }));
-app.MapPost("/api/auth/login", (LoginRequest request, CredentialStore users, TokenService tokens, IConfiguration config) => { var user = users.Validate(request.UserName, request.Password); if (user is null) return Results.Unauthorized(); var hours = double.TryParse(config["Auth:SessionHours"], out var configured) ? configured : 8; var expires = DateTimeOffset.UtcNow.AddHours(hours); return Results.Ok(new LoginResponse(tokens.Create(user, expires), user.UserName, user.DisplayName, user.Email, user.Role, expires)); });
+app.MapPost("/api/auth/login", (LoginRequest request, CredentialStore users, TokenService tokens, IConfiguration config) => Authenticate(request, null, users, tokens, config));
+app.MapPost("/api/auth/login/{portal}", (string portal, LoginRequest request, CredentialStore users, TokenService tokens, IConfiguration config) => Authenticate(request, portal, users, tokens, config));
 
 var api = app.MapGroup("/api");
 api.MapGet("/me", async (HttpContext c, AppDbContext db) => Results.Ok(new { userName = c.User.Identity!.Name, displayName = c.User.FindFirst("displayName")?.Value, role = c.User.FindFirst(ClaimTypes.Role)?.Value, assignmentGroupIds = await db.AgentGroupMemberships.Where(x => x.UserName == c.User.Identity!.Name).Select(x => x.AssignmentGroupId).ToArrayAsync() }));
@@ -193,6 +194,19 @@ await using (var scope = app.Services.CreateAsyncScope()) await SeedData.Initial
 app.Run();
 
 static string UserName(HttpContext c) => c.User.Identity!.Name!;
+static IResult Authenticate(LoginRequest request, string? portal, CredentialStore users, TokenService tokens, IConfiguration config)
+{
+    var expected = portal?.ToLowerInvariant() switch { null => null, "user" => "User", "admin" => "Admin", "agent" => "ITSupport", _ => "Invalid" };
+    if (expected == "Invalid") return Results.BadRequest(new { error = "Unknown login portal." });
+    var user = users.Validate(request.UserName, request.Password); if (user is null) return Results.Json(new { error = "Invalid username or password." }, statusCode: 401);
+    if (expected is not null && user.Role != expected)
+    {
+        var portalName = portal == "agent" ? "Support Agent" : char.ToUpperInvariant(portal![0]) + portal[1..];
+        return Results.Json(new { error = $"This account cannot access the {portalName} Portal." }, statusCode: 403);
+    }
+    var hours = double.TryParse(config["Auth:SessionHours"], out var configured) ? configured : 8; var expires = DateTimeOffset.UtcNow.AddHours(hours);
+    return Results.Ok(new LoginResponse(tokens.Create(user, expires), user.UserName, user.DisplayName, user.Email, user.Role, expires));
+}
 static string Role(HttpContext c) => c.User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
 static bool IsStaff(HttpContext c) => Role(c) is "Admin" or "ITSupport";
 static void Touch(Ticket t) => t.UpdatedAt = DateTimeOffset.UtcNow;

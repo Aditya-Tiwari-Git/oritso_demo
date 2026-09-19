@@ -13,7 +13,14 @@ async function api(path, token, method = 'GET', body) {
 }
 const userToken = await login('user', 'User@123');
 const agentToken = await login('rahul', 'Rahul@123');
-const session = await api('/api/live-support', userToken, 'POST', { subject: 'SignalR realtime verification' });
+const adminToken = await login('admin', 'Admin@123');
+const identities = await Promise.all([api('/api/me', userToken), api('/api/me', agentToken), api('/api/me', adminToken)]);
+if (identities.map(x => x.role).join(',') !== 'User,ITSupport,Admin') throw new Error('Portal sessions did not preserve independent identities');
+const botIssue = await api('/api/chat', userToken, 'POST', { message: 'My scanner keeps disconnecting during the live chat demo.' });
+const botUnresolved = await api('/api/chat', userToken, 'POST', { message: 'It is still not working.', sessionId: botIssue.sessionId });
+if (!botUnresolved.canEscalate) throw new Error('Chatbot did not offer live escalation');
+const transfer = await api('/api/chat', userToken, 'POST', { message: 'Connect me to a live agent.', sessionId: botIssue.sessionId, action: 'request-live' });
+const session = await api(`/api/live-support/${transfer.liveSessionId}`, userToken);
 const connect = async token => { const hub = new signalR.HubConnectionBuilder().withUrl(`${base}/hubs/support`, { accessTokenFactory: () => token }).withAutomaticReconnect().build(); await hub.start(); await hub.invoke('JoinSession', session.publicId); return hub; };
 const userHub = await connect(userToken); const agentHub = await connect(agentToken);
 const acceptedEvent = new Promise((resolve, reject) => { const timeout = setTimeout(() => reject(new Error('Session update timed out')), 5000); userHub.on('SessionUpdated', update => { if (update.status === 'Active') { clearTimeout(timeout); resolve(update); } }); });
@@ -31,5 +38,7 @@ const transcript = await api(`/api/live-support/${session.publicId}`, userToken)
 const bodies = transcript.messages.map(x => x.body);
 if (bodies.indexOf('User realtime test message') >= bodies.indexOf('Realtime CTS test message')) throw new Error('Persisted message ordering is incorrect');
 await api(`/api/live-support/${session.publicId}/end`, agentToken, 'POST', {});
+const identitiesAfterChat = await Promise.all([api('/api/me', userToken), api('/api/me', agentToken), api('/api/me', adminToken)]);
+if (identitiesAfterChat.map(x => x.userName).join(',') !== 'user,rahul,admin') throw new Error('A portal identity changed during live chat');
 await Promise.all([userHub.stop(), agentHub.stop()]);
-console.log('PASS SignalR bidirectional messaging, agent identity, and persisted ordering');
+console.log('PASS simultaneous User/Agent/Admin sessions and chatbot-to-agent realtime messaging');
